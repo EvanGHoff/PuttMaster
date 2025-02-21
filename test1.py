@@ -52,8 +52,8 @@ while True:
 
     # Ball detection
     ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
-    #ball_mask = cv2.erode(ball_mask, None, iterations=2)
-    #ball_mask = cv2.dilate(ball_mask, None, iterations=2)
+    ball_mask = cv2.erode(ball_mask, None, iterations=2)
+    ball_mask = cv2.dilate(ball_mask, None, iterations=2)
     ball_cnts = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     ball_cnts = imutils.grab_contours(ball_cnts)
 
@@ -61,8 +61,10 @@ while True:
     hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
     #hole_mask = cv2.erode(hole_mask, None, iterations=2)
     #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
-    hole_cnts = cv2.findContours(hole_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    hole_cnts = imutils.grab_contours(hole_cnts)
+    hole_cnt = cv2.findContours(hole_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    hole_cnts = imutils.grab_contours(hole_cnt)
+
+    circles = cv2.HoughCircles(hole_mask, cv2.HOUGH_GRADIENT, 1.2, 10)
 
     if ball_cnts and not ball_detected:
         print("Ball Detected")
@@ -70,21 +72,32 @@ while True:
         c = max(ball_cnts, key=cv2.contourArea)
         ((ball_x, ball_y), ball_radius) = cv2.minEnclosingCircle(c)
         ball_center = (int(ball_x), int(ball_y))
-    if hole_cnts and not hole_detected:
+    if circles is not None and not hole_detected: 
+    #if hole_cnts and not hole_detected:
         print("Hole Detected")
         hole_detected = True
-        h = max(hole_cnts, key=cv2.contourArea)
-        ((hole_x, hole_y), hole_radius) = cv2.minEnclosingCircle(h)
-        hole_center = (int(hole_x), int(hole_y))
+        circles = np.round(circles[0, :]).astype("int")
+        #h = max(hole_cnts, key=cv2.contourArea)
+        for (x, y, r) in circles: 
+            hole_center = (x, y)
+            hole_radius = r
+
+        #((hole_x, hole_y), hole_radius) = cv2.minEnclosingCircle(h)
+        #hole_center = (int(hole_x), int(hole_y))
         if ball_detected:
             #cv2.line(frame, ball_center, hole_center, (0, 255, 0), 2)
+            
             optimal_trajectory = (ball_center, hole_center)
             positions.append(ball_center)
     
-    if len(ball_cnts) > 0 and len(hole_cnts) > 0 and ball_detected and hole_detected:
-        cv2.circle(hole_mask, hole_center, int(hole_radius), (255, 0, 0), -1)
-        cv2.line(hole_mask, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
-
+    #if len(ball_cnts) > 0 and len(hole_cnts) > 0 and ball_detected and hole_detected:
+    if len(ball_cnts) > 0 and circles is not None and ball_detected and hole_detected:
+        #cv2.circle(hole_mask, hole_center, int(hole_radius), (255, 0, 0), -1)
+        cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
+        cv2.circle(frame, (x, y), r, (0, 0, 255), 4)
+        cv2.rectangle(frame, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+    cv2.drawContours(frame, hole_cnts, -1, (0, 255, 0), 3)
+    
     cv2.imshow("Frame", hole_mask)
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
