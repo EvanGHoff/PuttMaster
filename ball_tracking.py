@@ -22,10 +22,10 @@ ball_lower = (20, 150, 120)  # Yellow
 ball_upper = (40, 235, 255)  # Yellow
 #ball_lower = (0, 180, 150) # Orange
 #ball_upper = (20, 225, 255) # Orange
-#hole_lower = (150, 0, 0)      # Black (hole, to be adjusted once the actual hole is constructed) 
-#hole_upper = (180, 35, 10) # Black
-hole_lower = (0, 180, 150) # Orange
-hole_upper = (20, 225, 255) # Orange
+hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
+hole_upper = (130, 40, 130) # Black
+#hole_lower = (0, 180, 150) # Orange
+#hole_upper = (20, 225, 255) # Orange
 
 pts = deque(maxlen=args["buffer"])
 positions = []  # Store (x, y) positions
@@ -93,6 +93,7 @@ else:
     vs.release()
 cv2.destroyAllWindows()
 '''
+
 while True:
     frame = vs.read()
     frame = frame[1] if args.get("video", False) else frame
@@ -134,12 +135,12 @@ while True:
             optimal_trajectory = (ball_center, hole_center)
             positions.append(ball_center)
 
-    
-    
     center = None
     if len(ball_cnts) > 0 and len(hole_cnts) > 0 and ball_detected and hole_detected: 
     #if len(ball_cnts) > 0:
+        cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
         cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), -1)
+
         c = max(ball_cnts, key=cv2.contourArea)
         ((x, y), radius) = cv2.minEnclosingCircle(c)
         M = cv2.moments(c)
