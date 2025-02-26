@@ -1,3 +1,5 @@
+# Phased out. Different code is used for path display.
+
 import matplotlib.pyplot as plt
 import sys
 import time
