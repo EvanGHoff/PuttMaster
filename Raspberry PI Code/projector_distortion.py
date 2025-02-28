@@ -2,6 +2,115 @@ import cv2
 import numpy as np
 import os
 
+print(cv2.__version__)
+dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+
+
+def generate_aruco_markers():
+    """
+    Generates four ArUco markers with unique IDs and saves them as images.
+    """
+    marker_size = 200  # Size of each marker in pixels
+    save_path = r'C:\Users\\ehoff\\PuttMaster-1\\Raspberry PI Code\\markers'
+    os.makedirs(save_path, exist_ok=True)
+
+    for marker_id in range(4):
+        marker_image = np.zeros((marker_size, marker_size), dtype=np.uint8)
+        marker_image = cv2.aruco.generateImageMarker(dictionary, marker_id, marker_size, marker_image, 1)
+        cv2.imwrite(os.path.join(save_path, f'marker_{marker_id}.png'), marker_image)
+    print("ArUco markers generated and saved.")
+
+
+def display_markers():
+    """
+    Displays the generated ArUco markers in a full-screen window.
+    """
+    markers = []
+    for i in range(4):
+        marker = cv2.imread(f'C:/Users/ehoff/PuttMaster-1/Raspberry PI Code/markers/marker_{i}.png')
+        markers.append(marker)
+
+    # Create a white canvas and place the markers at the corners
+    canvas = np.full((1080, 1920, 3), 255, dtype=np.uint8)
+    canvas[100:300, 100:300] = markers[0]  # Top-left
+    canvas[100:300, 1620:1820] = markers[1]  # Top-right
+    canvas[780:980, 1620:1820] = markers[2]  # Bottom-right
+    canvas[780:980, 100:300] = markers[3]  # Bottom-left
+
+    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.imshow("window", canvas)
+    cv2.moveWindow("window", 1920, 0)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+
+def detect_aruco_markers(camera_index=0):
+    """
+    Detects the projected ArUco markers from the camera feed and computes the correction matrix.
+    """
+    cap = cv2.VideoCapture(camera_index)
+    parameters = cv2.aruco.DetectorParameters()
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        detector = cv2.aruco.ArucoDetector(dictionary, parameters)
+
+        corners, ids, _ = detector.detectMarkers(frame)
+        if ids is not None:
+            cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+
+            if len(ids) >= 4:
+                # Sort corners by marker ID to maintain order
+                ordered_corners = [corners[np.where(ids == i)[0][0]][0] for i in range(4)]
+                src_points = np.array([
+                    ordered_corners[0][0],  # top-left
+                    ordered_corners[1][1],  # top-right
+                    ordered_corners[2][2],  # bottom-right
+                    ordered_corners[3][3]   # bottom-left
+                ], dtype="float32")
+
+                # width = 1600
+                # height = 800
+
+                width = int(np.linalg.norm(ordered_corners[1][1] - ordered_corners[0][0]))  # Top width
+                height = int(np.linalg.norm(ordered_corners[2][2] - ordered_corners[0][0]))  # Left height
+
+                dst_points = np.array([
+                    [0, 0],
+                    [width - 1, 0],
+                    [width - 1, height - 1],
+                    [0, height - 1]
+                ], dtype="float32")
+
+                matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+                break
+                
+                # corrected = cv2.warpPerspective(frame, matrix, (width, height))
+                # cv2.imshow("Corrected Projection", corrected)
+
+                #if cv2.waitKey(1) & 0xFF == ord('q'):
+                #    print("Perspective Transformation Matrix:\n", matrix)
+                #    break
+
+        cv2.imshow("ArUco Detection", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    print(matrix)
+
+    with open("Raspberry PI Code/distortionMatrix.txt", "w") as f:
+        f.write(str(matrix))
+
+    return matrix
+
+
 def rectangle():
     array = np.zeros([1080, 1920, 3], np.uint8)
 
@@ -161,4 +270,8 @@ def order_points(pts):
     return rect
 
 # rectangle()
-image_det()
+# image_det()
+
+generate_aruco_markers()
+display_markers()
+detect_aruco_markers(0)
