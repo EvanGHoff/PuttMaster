@@ -7,7 +7,6 @@ import cv2
 import imutils
 import time
 
-start = input("Press Enter to start the subsystem...")
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -25,13 +24,16 @@ ball_upper = (40, 235, 255)  # Yellow
 hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
 hole_upper = (130, 40, 130) # Black
 
+green_lower = (60, 150, 20)
+green_upper = (95, 255, 150)
+
 pts = deque(maxlen=args["buffer"])
 positions = []  # Store (x, y) positions
 stopped_counter = 0  # Counter to check if ball stops
 
 # video input handling
 if not args.get("video", False):
-    vs = VideoStream(src=0).start()
+    vs = VideoStream(src=1).start()
 else:
     vs = cv2.VideoCapture(args["video"])
 time.sleep(1.0)  # Camera warm-up
@@ -46,7 +48,7 @@ while True:
     if frame is None:
         break
 
-    frame = imutils.resize(frame, width=600)
+    #frame = imutils.resize(frame, width=600)
     blurred = cv2.GaussianBlur(frame, (11, 11), 0)
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
@@ -63,6 +65,8 @@ while True:
     #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
     hole_cnt = cv2.findContours(hole_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     hole_cnts = imutils.grab_contours(hole_cnt)
+
+    green_mask = cv2.inRange(hsv, green_lower, green_upper)
 
     circles = cv2.HoughCircles(hole_mask, cv2.HOUGH_GRADIENT, 1.2, 10)
 
@@ -98,7 +102,7 @@ while True:
         cv2.rectangle(frame, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
     cv2.drawContours(frame, hole_cnts, -1, (0, 255, 0), 3)
     
-    cv2.imshow("Frame", hole_mask)
+    cv2.imshow("Frame", green_mask)
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
         break
