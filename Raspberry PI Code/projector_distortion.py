@@ -313,7 +313,7 @@ def display_line(start_point, end_point):
     return base_image
 
 
-calibrating = True
+calibrating = False
 
 if calibrating:
     # src
