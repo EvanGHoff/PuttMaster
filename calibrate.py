@@ -14,4 +14,4 @@ pickle.dump(dst_points, open('Raspberry PI Code/matrixes/dstPts.p','wb'))
 # input() #pause to find points
 
 matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-pickle.dump(dst_points, open('Raspberry PI Code/matrixes/matrix.p','wb'))
+pickle.dump(matrix, open('Raspberry PI Code/matrixes/matrix.p','wb'))
