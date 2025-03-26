@@ -3,7 +3,6 @@ from collections import deque
 import numpy as np
 import cv2
 import imutils
-import os, pdb
 import pickle
 import time
 
@@ -45,11 +44,18 @@ ball_detected = False
 hole_detected = False
 ball_moved = False
 rectangle_detected = False
+calibrate = True
 
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
+if calibrate:
+    calibrate()
+
 while True:
     ret, frame = vs.read()
+
+    dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+    dst_points = order_pts(dst_points)
 
     if not rectangle_detected:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -212,9 +218,6 @@ cv2.waitKey(0)
 cv2.destroyAllWindows()
 
 # Display Code 
-
-
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 
 def detect_green_rectangle():
     """
