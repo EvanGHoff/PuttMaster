@@ -211,12 +211,10 @@ cv2.setWindowProperty("Trajectory", cv2.WND_PROP_TOPMOST, 1)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-
 # Display Code 
 
 
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-
 
 def detect_green_rectangle():
     """
@@ -305,41 +303,6 @@ def rectangle():
     # Displaying the image 
 
     return image
-
-
-def order_points(pts):
-    """
-    Orders the 4 points in the order:
-    top-left, top-right, bottom-right, bottom-left.
-    """
-    rect = np.zeros((4, 2), dtype="float32")
-
-    # Sum and difference for point ordering
-    s = pts.sum(axis=1)
-    rect[0] = pts[np.argmin(s)]  # Top-left
-    rect[2] = pts[np.argmax(s)]  # Bottom-right
-
-    diff = np.diff(pts, axis=1)
-    rect[1] = pts[np.argmin(diff)]  # Top-right
-    rect[3] = pts[np.argmax(diff)]  # Bottom-left
-
-    return rect
-
-
-def generate_aruco_markers():
-    """
-    Generates four ArUco markers with unique IDs and saves them as images.
-    """
-    marker_size = 200  # Size of each marker in pixels
-    save_path = r'C:\Users\\ehoff\\PuttMaster-1\\Raspberry PI Code\\markers'
-    os.makedirs(save_path, exist_ok=True)
-
-    for marker_id in range(4):
-        marker_image = np.zeros((marker_size, marker_size), dtype=np.uint8)
-        marker_image = cv2.aruco.generateImageMarker(dictionary, marker_id, marker_size, marker_image, 1)
-        cv2.imwrite(os.path.join(save_path, f'marker_{marker_id}.png'), marker_image)
-    print("ArUco markers generated and saved.")
-
 
 def display_markers():
     """
@@ -456,52 +419,6 @@ def order_pts(point_list):
     ordered_list = [point_list[top_left], point_list[top_right], point_list[btm_right], point_list[btm_left]]
 
     return np.array(ordered_list, dtype=np.float32)
-
-
-def display_image():
-    image = cv2.imread(r"C:\Users\ehoff\PuttMaster-1\Raspberry PI Code\blue.jpg")
-    if image is None:
-        print("Error: Could not load image.")
-        exit()
-
-    # Calculate width and height of the destination rectangle
-    src_width = int(np.linalg.norm(src_points[1] - src_points[0]))  # Top width
-    src_height = int(np.linalg.norm(src_points[3] - src_points[0]))  # Left height
-
-    # Calculate width and height of the destination rectangle
-    dst_width = int(np.linalg.norm(dst_points[1] - dst_points[0]))  # Top width
-    dst_height = int(np.linalg.norm(dst_points[3] - dst_points[0]))  # Left height
-
-    # Calculate scaling factors for width and height
-    scale_x = dst_width / src_width
-    scale_y = dst_height / src_height
-
-    scaled_image = cv2.resize(image, None, fx=.7, fy=1, interpolation=cv2.INTER_LINEAR)
-
-    return scaled_image
-
-
-def display_image_3m():
-    image = cv2.imread(r"C:\Users\ehoff\PuttMaster-1\Raspberry PI Code\blue.jpg")
-    if image is None:
-        print("Error: Could not load image.")
-        exit()
-
-    # Calculate width and height of the destination rectangle
-    src_width = int(np.linalg.norm(src_points[1] - src_points[0]))  # Top width
-    src_height = int(np.linalg.norm(src_points[3] - src_points[0]))  # Left height
-
-    # Calculate width and height of the destination rectangle
-    dst_width = int(np.linalg.norm(dst_points[1] - dst_points[0]))  # Top width
-    dst_height = int(np.linalg.norm(dst_points[3] - dst_points[0]))  # Left height
-
-    # Calculate scaling factors for width and height
-    scale_x = dst_width / src_width
-    scale_y = dst_height / src_height
-
-    scaled_image = cv2.resize(image, None, fx=.75, fy=1, interpolation=cv2.INTER_LINEAR)
-
-    return scaled_image
 
 
 def display_line(start_point, end_point):
