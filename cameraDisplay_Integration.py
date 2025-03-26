@@ -439,21 +439,6 @@ def display_line(start_point, end_point):
     return base_image
 
 
-calibrating = False
-
-if calibrating:
-    # src
-    display_markers()
-    src_points = detect_aruco_markers(1)
-    #pickle.dump(src_points, open('Raspberry PI Code/matrixes/srcPts.p','wb'))
-
-    # dst
-    rectangle()
-    cv2.waitKey(1)
-    dst_points = detect_green_rectangle()
-    #pickle.dump(dst_points, open('Raspberry PI Code/matrixes/dstPts.p','wb'))
-    input() #pause to find points
-
 
 src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
