@@ -50,10 +50,7 @@ hole_detected = False
 ball_moved = False
 rectangle_detected = False
 
-
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
-
-
 
 src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
@@ -117,10 +114,11 @@ while True:
                 mask = np.zeros(frame.shape[:2], dtype="uint8")
                 #cv2.circle(mask, (x, y), r, 255, -1)
                 
-                mean_val = cv2.mean(hole_mask, mask)
+                mean_val = cv2.mean(frame, hole_mask)
+            
                 #print(mean_val)
                 
-                if mean_val[0] > 180 and r > max_radius:  # Ensure it's dark and the largest circle
+                if mean_val[0] > 0 and r > max_radius:  # Ensure it's dark and the largest circle
                     max_radius = r
                     largest_circle = (x, y, r)
 
@@ -140,8 +138,8 @@ while True:
 
         center = None
         if len(ball_cnts) > 0 and ball_detected and hole_detected: 
-            #optimal_trajectory = (ball_center, hole_center)
-            #cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
+            optimal_trajectory = (ball_center, hole_center)
+            cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
             c = max(ball_cnts, key=cv2.contourArea)
