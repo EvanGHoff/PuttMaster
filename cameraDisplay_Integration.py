@@ -74,6 +74,8 @@ while True:
         matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         corrected_frame = cv2.warpPerspective(np.zeros((720, 1280, 3), dtype=np.uint8), matrix, (1280, 720))
 
+        calibrate.rectangle()
+
         # Ball detection
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
         #ball_mask = cv2.erode(ball_mask, None, iterations=2)
@@ -87,7 +89,7 @@ while True:
         #hole_mask = cv2.erode(hole_mask, None, iterations=2)
         #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
 
-        cv2.imshow("hole_mask", hole_mask)
+        #cv2.imshow("hole_mask", hole_mask)
 
         if ball_cnts and not ball_detected:
             print("Ball Detected")
@@ -95,6 +97,7 @@ while True:
             c = max(ball_cnts, key=cv2.contourArea)
             ((ball_x, ball_y), ball_radius) = cv2.minEnclosingCircle(c)
             ball_center = (int(ball_x), int(ball_y))
+            positions.append(ball_center)
         
         # Detect circles using Hough Circle Transform
         gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
@@ -110,7 +113,7 @@ while True:
             circles = np.round(circles[0, :]).astype("int")  # Convert to integer values
             
             for (x, y, r) in circles:
-                cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                 mask = np.zeros(frame.shape[:2], dtype="uint8")
                 #cv2.circle(mask, (x, y), r, 255, -1)
                 
@@ -140,6 +143,7 @@ while True:
         if len(ball_cnts) > 0 and ball_detected and hole_detected: 
             optimal_trajectory = (ball_center, hole_center)
             cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
+            cv2.line(corrected_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
             c = max(ball_cnts, key=cv2.contourArea)

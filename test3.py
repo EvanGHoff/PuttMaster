@@ -98,5 +98,6 @@ green_lower = (45, 80, 45)
 green_upper = (102, 210, 185)
 
 rectangle()
+input()
 cv2.waitKey(1)
-detect_green_rectangle()
+# detect_green_rectangle()
