@@ -16,7 +16,7 @@ input_file = sys.argv[1]
 
 # Create a figure and axis with green background
 fig, ax = plt.subplots(figsize=(12, 6))
-fig.patch.set_facecolor('green')  # Set figure background color
+fig.patch.set_facecolor([0, 0.1, 0])  # Set figure background color
 ax.set_facecolor('green')         # Set axis background color
 
 # Set plot limits and remove axes
@@ -43,13 +43,14 @@ with open(input_file, 'r') as f:
 
             # Clear previous line
             ax.clear()
-            ax.set_facecolor('green')  # Ensure background stays green
+            ax.set_facecolor('black')  # Ensure background stays green
             ax.set_xlim(0, 1440)
             ax.set_ylim(0, 720)
             ax.axis('off')
 
             # Plot the new line in red with increased thickness
-            ax.plot([x1, x2], [y1, y2], marker='o', linestyle='-', color='red', linewidth=3)
+            ax.plot([x1, x2], [y1, y2], marker='o', linestyle='-', color='white', linewidth=20)
+            ax.plot([x1-100, x2-100], [y1-100, y2-100], marker='o', linestyle='-', color='yellow', linewidth=20)
 
             # Update the figure
             plt.draw()
