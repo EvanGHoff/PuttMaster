@@ -5,6 +5,7 @@ import cv2
 import imutils
 import pickle
 import time
+import calibrate
 
 # start = input("Press Enter to start the subsystem...")
 
@@ -44,46 +45,34 @@ ball_detected = False
 hole_detected = False
 ball_moved = False
 rectangle_detected = False
-calibrate = True
+calibrating = True
 
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
-if calibrate:
-    calibrate()
+if calibrating:
+    calibrate.main()
+
+src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
+dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
 
 while True:
     ret, frame = vs.read()
 
-    dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
-    dst_points = order_pts(dst_points)
-
-    if not rectangle_detected:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        green_mask = cv2.inRange(hsv, green_lower, green_upper)
-        #Green Rectangle
-        contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        best_corners = None
-        max_area = 0
-
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area > 1000:  # Ignore small noise
-                approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
-
-                if len(approx) == 4:  # We want exactly 4 corners (rectangle)
-                    if area > max_area:  # Pick the largest valid rectangle
-                        max_area = area
-                        best_corners = np.array([point[0] for point in approx], dtype=np.float32)
-
-        if best_corners is not None:
-            min_values = np.min(best_corners.astype(int), axis=0)
-            max_values = np.max(best_corners.astype(int), axis=0)
+    if not rectangle_detected:  
+        #dst_points = calibrate.order_pts(dst_points)
+        if dst_points is None:
+            break
+        else:
+            min_values = np.min(dst_points.astype(int), axis=0)
+            max_values = np.max(dst_points.astype(int), axis=0)
             rectangle_detected = True
-            #print(max_values - min_values)
     
     if rectangle_detected:
         frame = frame.copy()[min_values[1]:max_values[1], min_values[0]:max_values[0]]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+        corrected_frame = cv2.warpPerspective(np.zeros((720, 1280, 3), dtype=np.uint8), matrix, (1280, 720))
 
         # Ball detection
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
@@ -121,7 +110,7 @@ while True:
             for (x, y, r) in circles:
                 #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                 mask = np.zeros(frame.shape[:2], dtype="uint8")
-                cv2.circle(mask, (x, y), r, 255, -1)
+                #cv2.circle(mask, (x, y), r, 255, -1)
                 
                 mean_val = cv2.mean(hole_mask, mask)
                 #print(mean_val)
@@ -140,13 +129,14 @@ while True:
                 #cv2.circle(frame, hole_center, hole_radius, (0, 255, 0), 2)  # Draw detected hole
                 if ball_detected:
                     cv2.line(frame, ball_center, hole_center, (0, 255, 0), 2)
+                    cv2.line(corrected_frame, ball_center, hole_center, (0, 255, 0), 2)
                     optimal_trajectory = (ball_center, hole_center)
                     positions.append(ball_center)
 
         center = None
         if len(ball_cnts) > 0 and ball_detected and hole_detected: 
-            optimal_trajectory = (ball_center, hole_center)
-            cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
+            #optimal_trajectory = (ball_center, hole_center)
+            #cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
             c = max(ball_cnts, key=cv2.contourArea)
@@ -190,13 +180,16 @@ while True:
             for i in range(1, len(positions)):
                 if positions[i - 1] is not None and positions[i] is not None:
                     cv2.line(frame, positions[i - 1], positions[i], (0, 0, 255), 2)
+                    cv2.line(corrected_frame, positions[i - 1], positions[i], (0, 0, 255), 2)
 
         pts.appendleft(center)
         #for i in range(1, len(pts)):
         if pts[0] is not None:
             cv2.line(frame, pts[0], hole_center, (0, 255, 255), 2)
+            cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 2)
 
         cv2.imshow("Frame", frame)
+        cv2.imshow("Corrected Frame", corrected_frame)
         cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
@@ -219,228 +212,8 @@ cv2.destroyAllWindows()
 
 # Display Code 
 
-def detect_green_rectangle():
-    """
-    Detects a specific green rectangular shape, applies perspective transformation,
-    and extracts the corrected shape region.
-    """
-    cap = cv2.VideoCapture(1)
+'''
 
-    shape_corners = None  # Store the detected corners
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Could not capture frame.")
-            break
-
-        # Convert to HSV and create a mask for green color
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        
-        mask = cv2.inRange(hsv, green_lower, green_upper)
-
-        # Find contours
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        best_corners = None
-        max_area = 0
-
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area > 1000:  # Ignore small noise
-                approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
-
-                if len(approx) == 4:  # We want exactly 4 corners (rectangle)
-                    if area > max_area:  # Pick the largest valid rectangle
-                        max_area = area
-                        best_corners = np.array([point[0] for point in approx], dtype=np.float32)
-
-        if best_corners is not None:
-            shape_corners = best_corners
-
-            # Draw the detected rectangle
-            cv2.drawContours(frame, [best_corners.astype(int)], -1, (0, 255, 0), 3)
-            for (x, y) in shape_corners.astype(int):
-                cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)  # Draw red circles at corners
-
-        cv2.imshow("Frame", frame)
-        cv2.imshow("Mask", mask)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-    # Return the detected rectangle's corners if found
-    if shape_corners is not None and len(shape_corners) == 4:
-        return shape_corners
-    else:
-        print("No valid rectangle detected.")
-        return None
-
-
-def rectangle():
-    array = np.zeros([1080, 1920, 3], np.uint8)
- 
-    # Reading an image in default mode
-    image = array
-
-    start_point = (200, 200)
-    end_point = (1800, 900)
-
-    color = (0, 0, 0)
-
-    # Line thickness of 2 px
-    thickness = -1
-    window_name = 'Image'
-    # Using cv2.rectangle() method
-    # Draw a rectangle with blue line borders of thickness of 2 px
-    image = cv2.rectangle(image, start_point, end_point, color, thickness)
-
-    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.imshow("window", image)
-    cv2.moveWindow("window", 1920, 0)
-
-    # Displaying the image 
-
-    return image
-
-def display_markers():
-    """
-    Displays the generated ArUco markers in a full-screen window.
-    """
-    markers = []
-    for i in range(4):
-        marker = cv2.imread(f'C:/Users/ehoff/PuttMaster-1/Raspberry PI Code/markers/marker_{i}.png')
-        markers.append(marker)
-
-    # Create a white canvas and place the markers at the corners
-    canvas = np.full((1080, 1920, 3), 255, dtype=np.uint8)
-    canvas[100:300, 100:300] = markers[0]  # Top-left
-    canvas[100:300, 1620:1820] = markers[1]  # Top-right
-    canvas[780:980, 1620:1820] = markers[2]  # Bottom-right
-    canvas[780:980, 100:300] = markers[3]  # Bottom-left
-
-    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.imshow("window", canvas)
-    cv2.moveWindow("window", 1920, 0)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-
-def detect_aruco_markers(camera_index=0):
-    """
-    Detects the projected ArUco markers from the camera feed and returns the detected source points.
-    """
-    cap = cv2.VideoCapture(camera_index)
-    parameters = cv2.aruco.DetectorParameters()
-    dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)  # Define marker dictionary
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        detector = cv2.aruco.ArucoDetector(dictionary, parameters)
-        corners, ids, _ = detector.detectMarkers(frame)
-        if ids is not None and len(ids) >= 4:
-            # Create a dictionary mapping marker IDs to their corner coordinates
-            id_to_corners = {ids[i][0]: corners[i][0] for i in range(len(ids))}
-
-            # Ensure we only use the four lowest IDs detected
-            sorted_ids = sorted(id_to_corners.keys())[:4]
-
-            if len(sorted_ids) == 4:
-                # Extract corners in a consistent order
-                ordered_corners = [id_to_corners[i] for i in sorted_ids]
-
-                src_points = np.array([
-                    ordered_corners[0][0],  # top-left
-                    ordered_corners[1][1],  # top-right
-                    ordered_corners[2][2],  # bottom-right
-                    ordered_corners[3][3]   # bottom-left
-                ], dtype="float32")
-
-                cap.release()
-                cv2.destroyAllWindows()
-
-                
-
-                # Sort by y-coordinates (top 2, bottom 2)
-                sorted_by_y = src_points[np.argsort(src_points[:, 1])]
-
-                # Top two points (left & right)
-                top_two = sorted_by_y[:2]
-                top_left, top_right = sorted(top_two, key=lambda p: p[0])  # Sort by x
-
-                # Bottom two points (left & right)
-                bottom_two = sorted_by_y[2:]
-                bottom_left, bottom_right = sorted(bottom_two, key=lambda p: p[0])  # Sort by x
-
-                # Reorder correctly for getPerspectiveTransform
-                # src_points = np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.float32)
-
-                return src_points  # Return detected source points
-
-        cv2.imshow("ArUco Detection", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-    return None  # Return None if detection fails
-
-
-def order_pts(point_list):
-    sum_list = []
-    index_list = [0, 1, 2, 3]
-    biggest_index = 0  # index of top right
-    smallest_index = 0  # index of bottom left
-    for i in range(len(point_list)):
-        sum_list.append(point_list[i][0] + point_list[i][1])
-        if sum_list[i] > sum_list[biggest_index]:
-            biggest_index = i
-        if sum_list[i] < sum_list[smallest_index]:
-            smallest_index = i
-
-    top_left = smallest_index
-    btm_right = biggest_index
-
-    index_list.remove(top_left)
-    index_list.remove(btm_right)
-    
-    if point_list[index_list[0]][0] > point_list[index_list[1]][0]:  # bigger x
-        top_right = index_list[0]
-        btm_left = index_list[1]
-    else:
-        top_right = index_list[1]
-        btm_left = index_list[0]
-    
-    ordered_list = [point_list[top_left], point_list[top_right], point_list[btm_right], point_list[btm_left]]
-
-    return np.array(ordered_list, dtype=np.float32)
-
-
-def display_line(start_point, end_point):
-    # Define the original screen size before warping (same as input image size)
-    original_width, original_height = 640, 480 
-    
-    # Create a blank image (white background for visibility)
-    base_image = np.zeros((original_height, original_width, 3), dtype=np.uint8)
-
-    # Draw the line on the base image
-    line_color = (255, 255, 255)  # Red color
-    line_thickness = 3
-    cv2.line(base_image, start_point, end_point, line_color, line_thickness)
-
-    return base_image
-
-
-
-src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
 
 dst_points = order_pts(dst_points)
@@ -465,7 +238,7 @@ start_y = 0
 
 while True:
     # Changing Line Test
-    #'''
+    #
     if start_x < 570:
         display_item = display_line((100, 240), (start_x, start_y))
         start_x += 2
@@ -473,7 +246,7 @@ while True:
     else:
         start_x = 0
         start_y = 0
-    #'''
+    #
 
     current_time = time.time()
     time_diff = current_time - prev_time
@@ -489,7 +262,7 @@ while True:
 
     # Perspective transform 
     matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-    corrected_frame = cv2.warpPerspective(display_item, matrix, (640, 480))
+    corrected_frame = cv2.warpPerspective(display_item, matrix, (1280, 720))
     # corrected_frame = cv2.warpPerspective(display_item, matrix, (710, 420))
 
     # Display Smoothed FPS
@@ -508,3 +281,5 @@ while True:
 
 # cap.release()
 cv2.destroyAllWindows()
+
+'''
