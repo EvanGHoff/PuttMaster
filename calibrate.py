@@ -136,7 +136,9 @@ def detect_green_rectangle():
     Detects a specific green rectangular shape, applies perspective transformation,
     and extracts the corrected shape region.
     """
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     shape_corners = None  # Store the detected corners
 
@@ -149,8 +151,11 @@ def detect_green_rectangle():
         # Convert to HSV and create a mask for green color
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         
-        green_lower = (60, 150, 20)
-        green_upper = (95, 255, 150)
+        #green_lower = (60, 150, 20)
+        #green_upper = (95, 255, 150)
+
+        green_lower = (45, 80, 45)
+        green_upper = (102, 210, 185)
         mask = cv2.inRange(hsv, green_lower, green_upper)
 
         # Find contours
@@ -223,7 +228,7 @@ def rectangle():
 def main():
     # src
     display_markers()
-    src_points = detect_aruco_markers(1)
+    src_points = detect_aruco_markers(0)
     pickle.dump(src_points, open('Raspberry PI Code/matrixes/srcPts.p','wb'))
 
     # dst

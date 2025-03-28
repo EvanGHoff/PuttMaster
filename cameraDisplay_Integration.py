@@ -14,8 +14,8 @@ ball_lower = (20, 150, 120)  # Yellow
 ball_upper = (40, 235, 255)  # Yellow
 #ball_lower = (0, 180, 150) # Orange
 #ball_upper = (20, 225, 255) # Orange
-hole_lower = (88, 50, 45)      # Black (hole, to be adjusted once the actual hole is constructed) 
-hole_upper = (120, 90, 150) # Black
+hole_lower = (85, 100, 10)      # Black (hole, to be adjusted once the actual hole is constructed) 
+hole_upper = (120, 180, 110) # Black
 #hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
 #hole_upper = (130, 40, 130) # Black
 
@@ -25,6 +25,10 @@ green_upper = (95, 255, 150)
 pts = deque(maxlen=1)
 positions = []  # Store (x, y) positions
 stopped_counter = 0  # Counter to check if ball stops
+
+calibrating = False
+if calibrating:
+    calibrate.main()
 
 # video input handling
 vs = cv2.VideoCapture(0)
@@ -45,12 +49,11 @@ ball_detected = False
 hole_detected = False
 ball_moved = False
 rectangle_detected = False
-calibrating = True
+
 
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
-if calibrating:
-    calibrate.main()
+
 
 src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
@@ -83,9 +86,11 @@ while True:
 
         # Hole detection
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
-        hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
-        hole_mask = cv2.erode(hole_mask, None, iterations=2)
-        hole_mask = cv2.dilate(hole_mask, None, iterations=2)
+        #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
+        #hole_mask = cv2.erode(hole_mask, None, iterations=2)
+        #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
+
+        cv2.imshow("hole_mask", hole_mask)
 
         if ball_cnts and not ball_detected:
             print("Ball Detected")
@@ -108,7 +113,7 @@ while True:
             circles = np.round(circles[0, :]).astype("int")  # Convert to integer values
             
             for (x, y, r) in circles:
-                #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                 mask = np.zeros(frame.shape[:2], dtype="uint8")
                 #cv2.circle(mask, (x, y), r, 255, -1)
                 

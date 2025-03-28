@@ -7,6 +7,9 @@ from tkinter import filedialog
 image_hsv = None
 pixel = (0,0,0) #RANDOM DEFAULT VALUE
 
+lowest_hsv = [1000, 1000, 1000]
+highest_hsv = [0, 0, 0]
+
 ftypes = [
     ("JPG", "*.jpg;*.JPG;*.JPEG"), 
     ("PNG", "*.png;*.PNG"),
@@ -50,10 +53,19 @@ def pick_color(event,x,y,flags,param):
         upper =  np.array([hue_upper, saturation_upper, value_upper])
         lower =  np.array([hue_lower, saturation_lower, value_lower])
         print(lower, upper)
+        update_final(lower, upper)
 
         #A MONOCHROME MASK FOR GETTING A BETTER VISION OVER THE COLORS 
         image_mask = cv2.inRange(image_hsv,lower,upper)
         cv2.imshow("Mask",image_mask)
+
+
+def update_final(lower, upper):
+    for i in range(3):
+        if lower[i] < lowest_hsv[i]:
+            lowest_hsv[i] = int(lower[i])
+        if upper[i] > highest_hsv[i]:
+            highest_hsv[i] = int(upper[i])
 
 def main():
 
@@ -76,6 +88,9 @@ def main():
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    print("Lower:", lowest_hsv)
+    print("Upper:", highest_hsv)
 
 if __name__=='__main__':
     main()

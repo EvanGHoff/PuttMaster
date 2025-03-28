@@ -63,6 +63,40 @@ def detect_green_rectangle():
         print("No valid rectangle detected.")
         return None
 
-green_lower = (60, 150, 20)
-green_upper = (95, 255, 150)
+
+def rectangle():
+    array = np.zeros([1080, 1920, 3], np.uint8)
+ 
+    # Reading an image in default mode
+    image = array
+
+    start_point = (200, 200)
+    end_point = (1800, 900)
+
+    color = (0, 0, 0)
+
+    # Line thickness of 2 px
+    thickness = -1
+    window_name = 'Image'
+    # Using cv2.rectangle() method
+    # Draw a rectangle with blue line borders of thickness of 2 px
+    image = cv2.rectangle(image, start_point, end_point, color, thickness)
+
+    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.imshow("window", image)
+    cv2.moveWindow("window", 1920, 0)
+
+    # Displaying the image 
+
+    return image
+
+# green_lower = (60, 150, 20)
+# green_upper = (95, 255, 150)
+
+green_lower = (45, 80, 45)
+green_upper = (102, 210, 185)
+
+rectangle()
+cv2.waitKey(1)
 detect_green_rectangle()
