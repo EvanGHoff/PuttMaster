@@ -6,6 +6,7 @@ import imutils
 import pickle
 import time
 import calibrate
+import Add_score
 
 # start = input("Press Enter to start the subsystem...")
 
@@ -32,7 +33,7 @@ if calibrating:
 
 # video input handling
 vs = cv2.VideoCapture(0)
-time.sleep(1.0)
+#time.sleep(1.0)
 vs.set(cv2.CAP_PROP_FPS, 60)
 '''
 vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -101,8 +102,8 @@ while True:
         
         # Detect circles using Hough Circle Transform
         gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (9, 9), 2)
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
+        gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+        circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
                                 param1=50, param2=30, minRadius=10, maxRadius=100)
 
         # Find the largest detected circle
@@ -115,16 +116,17 @@ while True:
             for (x, y, r) in circles:
                 #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                 mask = np.zeros(frame.shape[:2], dtype="uint8")
-                #cv2.circle(mask, (x, y), r, 255, -1)
+                cv2.circle(mask, (x, y), r, 255, -1)
                 
-                mean_val = cv2.mean(frame, hole_mask)
+                mean_val = cv2.mean(gray, mask)
             
-                #print(mean_val)
+                #print(mean_val, "   ", (x, y, r))
                 
-                if mean_val[0] > 0 and r > max_radius:  # Ensure it's dark and the largest circle
+                if mean_val[0] < 60 and r > max_radius:  # Ensure it's dark and the largest circle
                     max_radius = r
                     largest_circle = (x, y, r)
-
+            #cv2.imshow("gray", gray)
+            #cv2.imshow("mask1", mask)
             # Draw the largest detected hole
             #if largest_circle is not None:
             if largest_circle is not None and not hole_detected:
@@ -133,11 +135,13 @@ while True:
                 print("Hole Detected")
                 hole_detected = True
                 #cv2.circle(frame, hole_center, hole_radius, (0, 255, 0), 2)  # Draw detected hole
+                '''
                 if ball_detected:
                     cv2.line(frame, ball_center, hole_center, (0, 255, 0), 2)
                     cv2.line(corrected_frame, ball_center, hole_center, (0, 255, 0), 2)
                     optimal_trajectory = (ball_center, hole_center)
                     positions.append(ball_center)
+                '''
 
         center = None
         if len(ball_cnts) > 0 and ball_detected and hole_detected: 
@@ -145,6 +149,7 @@ while True:
             cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
             cv2.line(corrected_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
+            cv2.circle(corrected_frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
             c = max(ball_cnts, key=cv2.contourArea)
             ((x, y), radius) = cv2.minEnclosingCircle(c)
@@ -168,6 +173,7 @@ while True:
                 if stopped_counter > 120:  # Ball stopped moving
                     print("Ball Stopped. Subsystem Stopping...")
                     break'''
+                '''
                 if len(positions) > 30 and ball_moved:
                     distances = np.linalg.norm(np.array(positions[-30:]) - np.array(center), axis=1)
                     print(distances)
@@ -178,7 +184,7 @@ while True:
                         else:
                             print("Target missed")
                         break
-
+                '''
             positions.append(center)  # Record position
             #print(" ", ball_center, " ", center)
 
@@ -195,6 +201,10 @@ while True:
             cv2.line(frame, pts[0], hole_center, (0, 255, 255), 2)
             cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 2)
 
+        #calculate score
+        score = 100
+        Add_score.add_score_to_image(frame, score)
+
         cv2.imshow("Frame", frame)
         cv2.imshow("Corrected Frame", corrected_frame)
         cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
@@ -206,6 +216,7 @@ vs.release()
 #vs.stop()
 cv2.destroyAllWindows()
 
+'''
 # Show trajectory after ball stops
 trajectory_frame = np.zeros_like(frame)
 cv2.line(trajectory_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
@@ -216,7 +227,7 @@ cv2.imshow("Trajectory", trajectory_frame)
 cv2.setWindowProperty("Trajectory", cv2.WND_PROP_TOPMOST, 1)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-
+'''
 # Display Code 
 
 '''
