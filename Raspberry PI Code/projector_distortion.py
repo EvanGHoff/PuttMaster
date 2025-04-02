@@ -1,3 +1,6 @@
+# Warp 
+
+
 import cv2
 import numpy as np
 import os, pdb
@@ -147,10 +150,10 @@ def display_markers():
 
     # Create a white canvas and place the markers at the corners
     canvas = np.full((1080, 1920, 3), 255, dtype=np.uint8)
-    canvas[100:300, 100:300] = markers[0]  # Top-left
-    canvas[100:300, 1620:1820] = markers[1]  # Top-right
-    canvas[780:980, 1620:1820] = markers[2]  # Bottom-right
-    canvas[780:980, 100:300] = markers[3]  # Bottom-left
+    canvas[20:220, 20:220] = markers[0]  # Top-left
+    canvas[20:220, 1700:1900] = markers[1]  # Top-right
+    canvas[860:1060, 1700:1900] = markers[2]  # Bottom-right
+    canvas[860:1060, 20:220] = markers[3]  # Bottom-left
 
     cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -254,7 +257,12 @@ def order_pts(point_list):
 
 
 def display_image():
-    image = cv2.imread(r"C:\Users\ehoff\PuttMaster-1\Raspberry PI Code\blue.jpg")
+    image = cv2.imread(r"Raspberry PI Code\jeremy-bishop-u8kwr3pWVA4-unsplash.jpg")
+    image = cv2.resize(image, (1920, 1080))
+    
+    #image = np.zeros([1080, 1920, 3], np.uint8)
+    #image[:,:,0] = 255
+
     if image is None:
         print("Error: Could not load image.")
         exit()
@@ -271,9 +279,19 @@ def display_image():
     scale_x = dst_width / src_width
     scale_y = dst_height / src_height
 
-    scaled_image = cv2.resize(image, None, fx=.7, fy=1, interpolation=cv2.INTER_LINEAR)
+    scaled_image = cv2.resize(image, None, fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
 
-    return scaled_image
+
+    while True: 
+        cv2.namedWindow("Image", cv2.WINDOW_NORMAL )
+        cv2.setWindowProperty("Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Image", image)
+        cv2.moveWindow("Image", 1920, 0)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    return image
 
 
 def display_image_3m():
@@ -294,7 +312,7 @@ def display_image_3m():
     scale_x = dst_width / src_width
     scale_y = dst_height / src_height
 
-    scaled_image = cv2.resize(image, None, fx=.75, fy=1, interpolation=cv2.INTER_LINEAR)
+    scaled_image = cv2.resize(image, None, fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
 
     return scaled_image
 
@@ -312,6 +330,34 @@ def display_line(start_point, end_point):
     cv2.line(base_image, start_point, end_point, line_color, line_thickness)
 
     return base_image
+
+
+def my_warp(image):
+
+    Aruco_proj = np.array([[20, 20], [1900, 20], [1900, 1060], [20, 1060]], np.float32)
+    Aruco_cam = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
+
+    matrix1 = cv2.getPerspectiveTransform(Aruco_cam, Aruco_proj)
+
+    green_cam = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+    
+
+
+    green_cam_hc = np.hstack((green_cam, [[1], [1], [1], [1]]))
+    
+    green_proj = np.matmul(matrix1, green_cam_hc.T).T
+    green_proj = green_proj / [[x] for x in green_proj[:,-1]]
+    green_proj = green_proj[:,:2].astype(int).astype(np.float32)
+
+    screen_proj = np.array([ [0, 0], [1920, 0], [1920, 1080], [0, 1080] ], np.float32)
+    # pdb.set_trace()
+    matrix2 = cv2.getPerspectiveTransform(screen_proj, green_proj)
+
+    out_image = cv2.warpPerspective(image, matrix2, (1920, 1080))
+
+    return out_image
+
+
 
 
 calibrating = False
@@ -344,7 +390,7 @@ fps_queue = deque(maxlen=50)  # Store the last 50 FPS values
 
 
 # Display Image
-# display_item = display_image()
+display_item = display_image()
 
 # Line Test
 # display_item = display_line((100, 240), (520, 320))
@@ -353,9 +399,27 @@ fps_queue = deque(maxlen=50)  # Store the last 50 FPS values
 start_x = 0
 start_y = 0
 
+
+min_src_values = np.min(src_points.astype(int), axis=0)
+max_src_values = np.max(src_points.astype(int), axis=0)
+
+min_dst_values = np.min(dst_points.astype(int), axis=0)
+max_dst_values = np.max(dst_points.astype(int), axis=0)
+
+src_width = max_src_values[0] - min_src_values[0]
+dst_width = max_dst_values[0] - min_dst_values[0]
+
+src_height = max_src_values[1] - min_src_values[1]
+dst_height = max_dst_values[1] - min_dst_values[1]
+
+display_width = int(1920 * (dst_width/src_width))
+display_height = int(1080 * (dst_height/src_height))
+
+print("Test:", display_width)
+
 while True:
     # Changing Line Test
-    #'''
+    '''
     if start_x < 570:
         display_item = display_line((100, 240), (start_x, start_y))
         start_x += 2
@@ -363,7 +427,7 @@ while True:
     else:
         start_x = 0
         start_y = 0
-    #'''
+    '''
 
     current_time = time.time()
     time_diff = current_time - prev_time
@@ -377,9 +441,12 @@ while True:
 
     avg_fps = sum(fps_queue) / len(fps_queue)  # Moving average FPS
 
+    corrected_frame = my_warp(display_item)
+
     # Perspective transform 
-    matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-    corrected_frame = cv2.warpPerspective(display_item, matrix, (640, 480))
+    # matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+
+    # corrected_frame = cv2.warpPerspective(display_item, matrix, (1920, 1080))
     # corrected_frame = cv2.warpPerspective(display_item, matrix, (710, 420))
 
     # Display Smoothed FPS

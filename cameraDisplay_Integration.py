@@ -27,12 +27,18 @@ pts = deque(maxlen=1)
 positions = []  # Store (x, y) positions
 stopped_counter = 0  # Counter to check if ball stops
 
-calibrating = False
+vs = cv2.VideoCapture(0)
+vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+calibrating = True
 if calibrating:
-    calibrate.main()
+    calibrate.main(vs)
+
+input("Calib Done")
 
 # video input handling
-vs = cv2.VideoCapture(0)
+
 #time.sleep(1.0)
 vs.set(cv2.CAP_PROP_FPS, 60)
 '''
@@ -40,8 +46,7 @@ vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 '''
 
-vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
 '''
 
 '''
@@ -73,7 +78,7 @@ while True:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-        corrected_frame = cv2.warpPerspective(np.zeros((720, 1280, 3), dtype=np.uint8), matrix, (1280, 720))
+        corrected_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
         calibrate.rectangle()
 
@@ -204,6 +209,8 @@ while True:
         #calculate score
         score = 100
         Add_score.add_score_to_image(frame, score)
+
+        corrected_frame = cv2.warpPerspective(corrected_frame, matrix, (1280, 720))
 
         cv2.imshow("Frame", frame)
         cv2.imshow("Corrected Frame", corrected_frame)

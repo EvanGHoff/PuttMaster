@@ -57,10 +57,10 @@ def display_markers():
 
     # Create a white canvas and place the markers at the corners
     canvas = np.full((1080, 1920, 3), 255, dtype=np.uint8)
-    canvas[100:300, 100:300] = markers[0]  # Top-left
-    canvas[100:300, 1620:1820] = markers[1]  # Top-right
-    canvas[780:980, 1620:1820] = markers[2]  # Bottom-right
-    canvas[780:980, 100:300] = markers[3]  # Bottom-left
+    canvas[20:220, 20:220] = markers[0]  # Top-left
+    canvas[20:220, 1700:1900] = markers[1]  # Top-right
+    canvas[860:1060, 1700:1900] = markers[2]  # Bottom-right
+    canvas[860:1060, 20:220] = markers[3]  # Bottom-left
 
     cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("window", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -69,13 +69,11 @@ def display_markers():
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-def detect_aruco_markers(camera_index=0):
+def detect_aruco_markers(cap):
     """
     Detects the projected ArUco markers from the camera feed and returns the detected source points.
     """
-    cap = cv2.VideoCapture(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    
     parameters = cv2.aruco.DetectorParameters()
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)  # Define marker dictionary
 
@@ -93,9 +91,19 @@ def detect_aruco_markers(camera_index=0):
             # Ensure we only use the four lowest IDs detected
             sorted_ids = sorted(id_to_corners.keys())[:4]
 
+            # Show the video with detected markers
+            cv2.imshow("ArUco Marker Detection", frame)
+
+            # Exit if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
             if len(sorted_ids) == 4:
                 # Extract corners in a consistent order
                 ordered_corners = [id_to_corners[i] for i in sorted_ids]
+
+                #print(ordered_corners)
+                #input()
 
                 src_points = np.array([
                     ordered_corners[0][0],  # top-left
@@ -104,8 +112,6 @@ def detect_aruco_markers(camera_index=0):
                     ordered_corners[3][3]   # bottom-left
                 ], dtype="float32")
 
-                cap.release()
-                cv2.destroyAllWindows()
 
                 # Sort by y-coordinates (top 2, bottom 2)
                 sorted_by_y = src_points[np.argsort(src_points[:, 1])]
@@ -127,18 +133,14 @@ def detect_aruco_markers(camera_index=0):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cap.release()
     cv2.destroyAllWindows()
     return None  # Return None if detection fails
 
-def detect_green_rectangle():
+def detect_green_rectangle(cap):
     """
     Detects a specific green rectangular shape, applies perspective transformation,
     and extracts the corrected shape region.
     """
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     shape_corners = None  # Store the detected corners
 
@@ -188,7 +190,6 @@ def detect_green_rectangle():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cap.release()
     cv2.destroyAllWindows()
 
     # Return the detected rectangle's corners if found
@@ -224,19 +225,29 @@ def rectangle():
     # Displaying the image 
 
     return image
+    
 
-def main():
+def main(cap):
+
+    # cap = cv2.VideoCapture(0)
+    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
     # src
     display_markers()
-    src_points = detect_aruco_markers(0)
+    src_points = detect_aruco_markers(cap)
+    print("Markers Detected:", src_points)
+    cv2.destroyAllWindows()
     pickle.dump(src_points, open('Raspberry PI Code/matrixes/srcPts.p','wb'))
 
     # dst
     rectangle()
     cv2.waitKey(1)
-    dst_points = detect_green_rectangle()
+    dst_points = detect_green_rectangle(cap)
+    dst_points = order_pts(dst_points)
+    print("Green Detected:", dst_points)
     pickle.dump(dst_points, open('Raspberry PI Code/matrixes/dstPts.p','wb'))
-    # input() #pause to find points
+    #input()  pause to find points
 
     matrix = cv2.getPerspectiveTransform(src_points, dst_points)
     pickle.dump(matrix, open('Raspberry PI Code/matrixes/matrix.p','wb'))
