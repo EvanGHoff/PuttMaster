@@ -27,24 +27,27 @@ pts = deque(maxlen=1)
 positions = []  # Store (x, y) positions
 stopped_counter = 0  # Counter to check if ball stops
 
-vs = cv2.VideoCapture(0)
+vs = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+'''
 vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+'''
+vs.set(cv2.CAP_PROP_FPS, 60)
 
-calibrating = True
+vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+calibrating = False
 if calibrating:
     calibrate.main(vs)
 
-input("Calib Done")
+# input("Calib Done")
 
 # video input handling
 
 #time.sleep(1.0)
-vs.set(cv2.CAP_PROP_FPS, 60)
-'''
-vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-'''
+
+
 
 
 '''
@@ -58,8 +61,10 @@ rectangle_detected = False
 
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
-src_points = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
+
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+matrix2 = pickle.load(open('Raspberry PI Code/matrixes/matrix2.p','rb'))
+score = 0
 
 while True:
     ret, frame = vs.read()
@@ -71,14 +76,15 @@ while True:
         else:
             min_values = np.min(dst_points.astype(int), axis=0)
             max_values = np.max(dst_points.astype(int), axis=0)
+            print("Min:", min_values)
+            print("Max:", max_values)
             rectangle_detected = True
     
     if rectangle_detected:
         frame = frame.copy()[min_values[1]:max_values[1], min_values[0]:max_values[0]]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-        corrected_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        corrected_frame = np.zeros((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
 
         calibrate.rectangle()
 
@@ -211,16 +217,28 @@ while True:
         if pts[0] is not None:
             cv2.line(frame, pts[0], hole_center, (0, 255, 255), 2)
             cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 2)
+            
+            score = Add_score.get_Score(np.array(pts[0]), np.array(hole_center), dst_points, score)
+            Add_score.add_score_to_image(corrected_frame, score)
 
         #calculate score
-        score = 100
-        Add_score.add_score_to_image(frame, score)
+        # score = 0
+        
+        
+        
+        resized_img = cv2.resize(corrected_frame, (1920, 1080))
+        # frame = cv2.resize(frame, (1920, 1080))
 
-        corrected_frame = cv2.warpPerspective(corrected_frame, matrix, (1280, 720))
+        corrected_frame = calibrate.my_warp(resized_img)
+        # frame = calibrate.my_warp(frame)
+        # corrected_frame = cv2.warpPerspective(image, matrix2, (1920, 1080))
 
         cv2.imshow("Frame", frame)
+        cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Corrected Frame", corrected_frame)
-        cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
+        
+        # cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
@@ -228,6 +246,8 @@ while True:
 vs.release()
 #vs.stop()
 cv2.destroyAllWindows()
+
+
 
 '''
 # Show trajectory after ball stops

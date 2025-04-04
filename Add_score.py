@@ -45,3 +45,19 @@ def add_score_to_image(image: np.ndarray, score: float) -> np.ndarray:
 
     
     return image
+
+def get_Score(ball_pos, hole_pos, green_corners, curr_score):
+    dist = int(np.linalg.norm(ball_pos - hole_pos))
+
+    green_corners = green_corners - green_corners[0]
+
+    gr_dist1 = np.linalg.norm(green_corners[0] - hole_pos)
+    gr_dist2 = np.linalg.norm(green_corners[1] - hole_pos)
+    gr_dist3 = np.linalg.norm(green_corners[2] - hole_pos)
+    gr_dist4 = np.linalg.norm(green_corners[3] - hole_pos)
+
+    max_dist = max(gr_dist1, gr_dist2, gr_dist3, gr_dist4)
+ 
+    return max(curr_score, int(100 - (100 * (dist / max_dist))))
+
+

@@ -225,6 +225,30 @@ def rectangle():
     # Displaying the image 
 
     return image
+
+
+def my_warp(image):
+
+    Aruco_proj = np.array([[20, 20], [1900, 20], [1900, 1060], [20, 1060]], np.float32)
+    Aruco_cam = pickle.load(open('Raspberry PI Code/matrixes/srcPts.p','rb'))
+
+    matrix1 = cv2.getPerspectiveTransform(Aruco_cam, Aruco_proj)
+
+    green_cam = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+    
+    green_cam_hc = np.hstack((green_cam, [[1], [1], [1], [1]]))
+    
+    green_proj = np.matmul(matrix1, green_cam_hc.T).T
+    green_proj = green_proj / [[x] for x in green_proj[:,-1]]
+    green_proj = green_proj[:,:2].astype(int).astype(np.float32)
+
+    screen_proj = np.array([ [0, 0], [1920, 0], [1920, 1080], [0, 1080] ], np.float32)
+    # pdb.set_trace()
+    matrix2 = cv2.getPerspectiveTransform(screen_proj, green_proj)
+
+    out_image = cv2.warpPerspective(image, matrix2, (1920, 1080))
+
+    return out_image
     
 
 def main(cap):
@@ -251,6 +275,8 @@ def main(cap):
 
     matrix = cv2.getPerspectiveTransform(src_points, dst_points)
     pickle.dump(matrix, open('Raspberry PI Code/matrixes/matrix.p','wb'))
+
+    # my_warp()
 
 if __name__ == "__main__":
     main()

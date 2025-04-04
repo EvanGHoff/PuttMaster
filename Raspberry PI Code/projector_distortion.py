@@ -17,7 +17,7 @@ def detect_green_rectangle():
     Detects a specific green rectangular shape, applies perspective transformation,
     and extracts the corrected shape region.
     """
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
     shape_corners = None  # Store the detected corners
 
@@ -167,7 +167,7 @@ def detect_aruco_markers(camera_index=0):
     """
     Detects the projected ArUco markers from the camera feed and returns the detected source points.
     """
-    cap = cv2.VideoCapture(camera_index)
+    cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
     parameters = cv2.aruco.DetectorParameters()
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)  # Define marker dictionary
 
