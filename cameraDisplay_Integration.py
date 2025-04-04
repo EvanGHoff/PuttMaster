@@ -179,6 +179,7 @@ while True:
                     print("Ball Stopped. Subsystem Stopping...")
                     break'''
                 '''
+                #case 1, stops on the green
                 if len(positions) > 30 and ball_moved:
                     distances = np.linalg.norm(np.array(positions[-30:]) - np.array(center), axis=1)
                     print(distances)
@@ -189,6 +190,11 @@ while True:
                         else:
                             print("Target missed")
                         break
+                '''
+                '''
+                #case 2, out of green
+                if ball_moved:
+                    
                 '''
             positions.append(center)  # Record position
             #print(" ", ball_center, " ", center)
