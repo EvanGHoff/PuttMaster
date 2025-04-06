@@ -2,16 +2,6 @@ import cv2
 import numpy as np
 
 def add_score_to_image(image: np.ndarray, score: float) -> np.ndarray:
-    """
-    Adds a score to an image without overlapping existing lines or circles.
-    
-    Parameters:
-        image (np.ndarray): Input image with lines and circles already drawn.
-        score (float): The score to be displayed on the image.
-        
-    Returns:
-        np.ndarray: Image with the score displayed in an empty region.
-    """
     # Convert to grayscale and create a binary mask of non-empty regions
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     mask = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)[1]
@@ -32,14 +22,14 @@ def add_score_to_image(image: np.ndarray, score: float) -> np.ndarray:
     
     # If a valid spot is found, draw the text
     if best_x is not None and best_y is not None:
-        text = f"Score: {score:.2f}"
+        text = f"Score: {score}"
         cv2.putText(image, text, (best_x, best_y + 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
     else:
         best_x = 0
         best_y = 0
-        text = f"Score: {score:.2f}"
-        cv2.putText(image, text, (best_x, best_y + 20),
+        text = f"Score: {score}"
+        cv2.putText(image, text, (best_x, best_y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
         #print("Warning: No empty space found for text placement.")
 
@@ -60,4 +50,14 @@ def get_Score(ball_pos, hole_pos, green_corners, curr_score):
  
     return max(curr_score, int(100 - (100 * (dist / max_dist))))
 
+def is_near_edge(ball_pos, green_corners, edge_threshold):
+    ball_x, ball_y = ball_pos
+    rect_bounds = green_corners - green_corners[0]
+    x_min, x_max, y_min, y_max = rect_bounds
 
+    near_left   = ball_x - x_min <= edge_threshold
+    near_right  = x_max - ball_x <= edge_threshold
+    near_top    = ball_y - y_min <= edge_threshold
+    near_bottom = y_max - ball_y <= edge_threshold
+
+    return near_left or near_right or near_top or near_bottom
