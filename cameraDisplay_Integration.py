@@ -9,8 +9,11 @@ import calibrate
 import Add_score
 
 # define the lower and upper boundaries for the ball and hole
-ball_lower = (20, 150, 120)  # Yellow
-ball_upper = (40, 235, 255)  # Yellow
+#ball to be adjusted
+#ball_lower = (20, 150, 120)  # Yellow
+#ball_upper = (40, 235, 255)  # Yellow
+ball_lower = (30, 90, 180)  # Yellow
+ball_upper = (65, 235, 255)  # Yellow
 #ball_lower = (0, 180, 150) # Orange
 #ball_upper = (20, 225, 255) # Orange
 hole_lower = (85, 73, 35)      # Black (hole, to be adjusted once the actual hole is constructed) 
@@ -73,6 +76,8 @@ while True:
         ball_cnt = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         ball_cnts = imutils.grab_contours(ball_cnt)
 
+        #cv2.imshow("ball mask", ball_mask)
+
         # Hole detection
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
@@ -81,29 +86,55 @@ while True:
 
         #cv2.imshow("hole_mask", hole_mask)
 
+        '''
         if not ball_detected and ball_cnts:
             print("Ball Detected")
             ball_detected = True
             c = max(ball_cnts, key=cv2.contourArea)
             ((ball_x, ball_y), ball_radius) = cv2.minEnclosingCircle(c)
             ball_center = (int(ball_x), int(ball_y))
-            positions.append(ball_center)
+            positions.append(ball_center)'''
+        
+        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+        gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+        circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
+                                    param1=50, param2=30, minRadius=10, maxRadius=100)
+        if not ball_detected:
+            largest_circle = None
+            max_radius = 0
+            if circles is not None:
+                circles1 = np.round(circles[0, :]).astype("int")  # Convert to integer values
+                
+                for (x, y, r) in circles1:
+                    #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                    mask = np.zeros(frame.shape[:2], dtype="uint8")
+                    cv2.circle(mask, (x, y), r, 255, -1)
+                    
+                    mean_val = cv2.mean(ball_mask, mask)
+                    #print(mean_val, "   ", (x, y, r))
+                    if mean_val[0] > 200 and r > max_radius:  # Ensure it's dark and the largest circle
+                        max_radius = r
+                        largest_circle = (x, y, r)
+                if largest_circle is not None:
+                    ball_x, ball_y, ball_radius = largest_circle
+                    ball_center = (ball_x, ball_y)
+                    ball_detected = True
+                    if ball_detected:
+                        print("Ball Detected")
+                    cv2.circle(frame, ball_center, int(ball_radius), (255, 0, 0), 2)
+                    cv2.circle(corrected_frame, ball_center, int(ball_radius), (255, 0, 0), 2)
+                    positions.append(ball_center)
         
         # Detect circles using Hough Circle Transform
         if not hole_detected:
-            gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-            gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-            circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
-                                    param1=50, param2=30, minRadius=10, maxRadius=100)
-
             # Find the largest detected circle
             largest_circle = None
             max_radius = 0
 
             if circles is not None:
-                circles = np.round(circles[0, :]).astype("int")  # Convert to integer values
+                circles2 = np.round(circles[0, :]).astype("int")  # Convert to integer values
                 
-                for (x, y, r) in circles:
+                for (x, y, r) in circles2:
                     cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                     mask = np.zeros(frame.shape[:2], dtype="uint8")
                     cv2.circle(mask, (x, y), r, 255, -1)
@@ -128,20 +159,42 @@ while True:
         center = None
         if ball_detected and hole_detected: 
             optimal_trajectory = (ball_center, hole_center)
-            cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
-            cv2.line(corrected_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 2)
+            cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 10)
+            cv2.line(corrected_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 10)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
             cv2.circle(corrected_frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
+            '''
             if len(ball_cnts) > 0:
                 c = max(ball_cnts, key=cv2.contourArea)
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
                 M = cv2.moments(c)
                 if M["m00"] != 0:
-                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))'''
+            if circles is not None:
+                largest_circle = None
+                max_radius = 0
+                circles3 = np.round(circles[0, :]).astype("int")  # Convert to integer values
+                
+                for (x, y, r) in circles3:
+                    #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                    mask = np.zeros(frame.shape[:2], dtype="uint8")
+                    cv2.circle(mask, (x, y), r, 255, -1)
+                    
+                    mean_val = cv2.mean(ball_mask, mask)
+                
+                    #print(mean_val, "   ", (x, y, r))
+                    if mean_val[0] > 200 and r > max_radius:  # Ensure it's dark and the largest circle
+                        max_radius = r
+                        largest_circle = (x, y, r)
+                if largest_circle is not None:
+                    ball_x, ball_y, radius = largest_circle
+                    center = (ball_x, ball_y)
+                    #cv2.circle(frame, ball_center, int(radius), (255, 0, 0), 2)
+                    #cv2.circle(corrected_frame, ball_center, int(radius), (255, 0, 0), 2)
+                    positions.append(center)
             
             if center is not None and positions[-1] is not None:
-                positions.append(center)
                 if radius > 0:
                     cv2.circle(frame, center, int(radius), (0, 255, 255), 2)
                     cv2.circle(corrected_frame, center, int(radius), (0, 255, 255), 2)
@@ -150,6 +203,7 @@ while True:
                 # Ball starts moving
                 #print(np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values))
                 #print(np.linalg.norm(np.array(center) - np.array(positions[-2])))
+                #print(center, positions[-2])
                 if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                     print("Ball is hit!")
                     ball_moved = True
@@ -161,14 +215,14 @@ while True:
         if len(positions) > 1:
             for i in range(1, len(positions)):
                 if positions[i - 1] is not None and positions[i] is not None:
-                    cv2.line(frame, positions[i - 1], positions[i], (0, 0, 255), 2)
-                    cv2.line(corrected_frame, positions[i - 1], positions[i], (255, 255, 255), 2)
+                    cv2.line(frame, positions[i - 1], positions[i], (0, 0, 255), 10)
+                    cv2.line(corrected_frame, positions[i - 1], positions[i], (255, 255, 255), 10)
 
         #case 1, stops on the green
-        if len(positions) > 240 and ball_moved:
-            distances = np.linalg.norm(np.array(positions[-240:]) - np.array(center), axis=1)
-            print(np.mean(distances))
-            if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.005:
+        if len(positions) > 120 and ball_moved:
+            distances = np.linalg.norm(np.array(positions[-120:]) - np.array(positions[-1]), axis=1)
+            print(np.mean(distances) / np.linalg.norm(max_values - min_values))
+            if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.01:
                 print("Ball Stopped. Subsystem Stopping...")
                 '''
                 if np.linalg.norm(np.array(center) - np.array(hole_center)) < 1:
@@ -178,17 +232,19 @@ while True:
                 break
             #case 2, out of green
             edge_threshold = 20
+            #for pos in positions[-60:]:
+            #    print(pos)
             near_edge_count = sum(
             Add_score.is_near_edge(pos, dst_points, edge_threshold) 
-            for pos in positions[-240]
+            for pos in positions[-120:]
             )
-            if near_edge_count > 235 and 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) == 0:
+            if near_edge_count > 115 and 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) == 0:
                 ball_out_of_green = True
 
         pts.appendleft(center)
         if pts[0] is not None:
-            cv2.line(frame, pts[0], hole_center, (0, 255, 255), 2)
-            cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 2)
+            cv2.line(frame, pts[0], hole_center, (0, 255, 255), 10)
+            cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 10)
 
             if ball_out_of_green:
                 Add_score.add_score_to_image(corrected_frame, score)
