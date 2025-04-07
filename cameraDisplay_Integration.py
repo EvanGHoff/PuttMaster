@@ -148,8 +148,9 @@ while True:
                     #cv2.circle(frame, center, 5, (0, 0, 255), -1)
                 
                 # Ball starts moving
-                print(np.linalg.norm(np.array(center) - np.array(positions[-1])) / np.linalg.norm(max_values - min_values))
-                if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-1])) / np.linalg.norm(max_values - min_values) > 0.02:
+                #print(np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values))
+                #print(np.linalg.norm(np.array(center) - np.array(positions[-2])))
+                if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                     print("Ball is hit!")
                     ball_moved = True
 
@@ -166,7 +167,7 @@ while True:
         #case 1, stops on the green
         if len(positions) > 240 and ball_moved:
             distances = np.linalg.norm(np.array(positions[-240:]) - np.array(center), axis=1)
-            #print(distances)
+            print(np.mean(distances))
             if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.005:
                 print("Ball Stopped. Subsystem Stopping...")
                 '''
