@@ -4,15 +4,13 @@ import numpy as np
 import cv2
 import imutils
 import pickle
-import time
 import calibrate
 import Add_score
 
 # define the lower and upper boundaries for the ball and hole
-#ball to be adjusted
 #ball_lower = (20, 150, 120)  # Yellow
 #ball_upper = (40, 235, 255)  # Yellow
-ball_lower = (30, 90, 180)  # Yellow
+ball_lower = (30, 90, 180)  # Yellow Ball on mat in lab at max light
 ball_upper = (65, 235, 255)  # Yellow
 #ball_lower = (0, 180, 150) # Orange
 #ball_upper = (20, 225, 255) # Orange
@@ -21,21 +19,18 @@ hole_upper = (120, 160, 160) # Black
 #hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
 #hole_upper = (130, 40, 130) # Black
 
-green_lower = (60, 150, 20) #paper
-green_upper = (95, 255, 150) #paper
-
+#Parameter Initialization
 pts = deque(maxlen=1)
 positions = []  # Store (x, y) positions
-#stopped_counter = 0  # Counter to check if ball stops
 ball_detected = False
 hole_detected = False
 ball_moved = False
 rectangle_detected = False
 ball_out_of_green = False
-
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
 score = 0
 
+#Camera Initialization and parameter adjustment 
 vs = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 vs.set(cv2.CAP_PROP_FPS, 60)
 vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -46,8 +41,7 @@ if calibrating:
     calibrate.main(vs)
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
-#time.sleep(1.0)
-
+#Main Video Loop
 while True:
     ret, frame = vs.read()
 
@@ -63,42 +57,27 @@ while True:
     
     if rectangle_detected:
         frame = frame.copy()[min_values[1]:max_values[1], min_values[0]:max_values[0]]
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
         corrected_frame = np.zeros((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
 
         #calibrate.rectangle()
 
-        # Ball detection
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
         #ball_mask = cv2.erode(ball_mask, None, iterations=2)
         #ball_mask = cv2.dilate(ball_mask, None, iterations=2)
-        ball_cnt = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        ball_cnts = imutils.grab_contours(ball_cnt)
-
         #cv2.imshow("ball mask", ball_mask)
 
-        # Hole detection
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
         #hole_mask = cv2.erode(hole_mask, None, iterations=2)
         #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
-
         #cv2.imshow("hole_mask", hole_mask)
-
-        '''
-        if not ball_detected and ball_cnts:
-            print("Ball Detected")
-            ball_detected = True
-            c = max(ball_cnts, key=cv2.contourArea)
-            ((ball_x, ball_y), ball_radius) = cv2.minEnclosingCircle(c)
-            ball_center = (int(ball_x), int(ball_y))
-            positions.append(ball_center)'''
         
         gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
         gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-        circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
-                                    param1=50, param2=30, minRadius=10, maxRadius=100)
+        circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=30,
+                                    param1=50, param2=30, minRadius=5, maxRadius=100)
+        
         if not ball_detected:
             largest_circle = None
             max_radius = 0
@@ -112,7 +91,7 @@ while True:
                     
                     mean_val = cv2.mean(ball_mask, mask)
                     #print(mean_val, "   ", (x, y, r))
-                    if mean_val[0] > 200 and r > max_radius:  # Ensure it's dark and the largest circle
+                    if mean_val[0] > 200 and r > max_radius:
                         max_radius = r
                         largest_circle = (x, y, r)
                 if largest_circle is not None:
@@ -164,13 +143,6 @@ while True:
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
             cv2.circle(corrected_frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
-            '''
-            if len(ball_cnts) > 0:
-                c = max(ball_cnts, key=cv2.contourArea)
-                ((x, y), radius) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                if M["m00"] != 0:
-                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))'''
             if circles is not None:
                 largest_circle = None
                 max_radius = 0
@@ -224,20 +196,10 @@ while True:
             print(np.mean(distances) / np.linalg.norm(max_values - min_values))
             if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.01:
                 print("Ball Stopped. Subsystem Stopping...")
-                '''
-                if np.linalg.norm(np.array(center) - np.array(hole_center)) < 1:
-                    print("Target hit")
-                else:
-                    print("Target missed")'''
                 break
             #case 2, out of green
             edge_threshold = 20
-            #for pos in positions[-60:]:
-            #    print(pos)
-            near_edge_count = sum(
-            Add_score.is_near_edge(pos, dst_points, edge_threshold) 
-            for pos in positions[-120:]
-            )
+            near_edge_count = sum(Add_score.is_near_edge(pos, dst_points, edge_threshold) for pos in positions[-120:])
             if near_edge_count > 115 and 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) == 0:
                 ball_out_of_green = True
 

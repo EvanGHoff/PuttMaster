@@ -51,7 +51,7 @@ def get_Score(ball_pos, hole_pos, green_corners, curr_score):
     return max(curr_score, int(100 - (100 * (dist / max_dist))))
 
 def is_near_edge(ball_pos, green_corners, edge_threshold):
-    ball_x, ball_y = ball_pos
+    #ball_x, ball_y = ball_pos
     rect_bounds = green_corners - green_corners[0]
     x_min, x_max, y_min, y_max = rect_bounds
     #print(ball_x - x_min)
