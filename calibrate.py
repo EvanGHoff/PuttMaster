@@ -69,6 +69,7 @@ def display_markers():
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
+
 def detect_aruco_markers(cap):
     """
     Detects the projected ArUco markers from the camera feed and returns the detected source points.
@@ -84,7 +85,10 @@ def detect_aruco_markers(cap):
 
         detector = cv2.aruco.ArucoDetector(dictionary, parameters)
         corners, ids, _ = detector.detectMarkers(frame)
+        cv2.aruco.drawDetectedMarkers(frame, corners, ids)
         if ids is not None and len(ids) >= 4:
+            
+
             # Create a dictionary mapping marker IDs to their corner coordinates
             id_to_corners = {ids[i][0]: corners[i][0] for i in range(len(ids))}
 
@@ -136,6 +140,7 @@ def detect_aruco_markers(cap):
     cv2.destroyAllWindows()
     return None  # Return None if detection fails
 
+
 def detect_green_rectangle(cap):
     """
     Detects a specific green rectangular shape, applies perspective transformation,
@@ -153,11 +158,13 @@ def detect_green_rectangle(cap):
         # Convert to HSV and create a mask for green color
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         
-        #green_lower = (60, 150, 20)
-        #green_upper = (95, 255, 150)
+        # Green Mat
+        green_lower = (60, 150, 20)
+        green_upper = (95, 255, 150)
 
-        green_lower = (45, 80, 45)
-        green_upper = (102, 210, 185)
+        # Green Paper
+        #green_lower = (45, 80, 45)
+        #green_upper = (102, 210, 185)
         mask = cv2.inRange(hsv, green_lower, green_upper)
 
         # Find contours

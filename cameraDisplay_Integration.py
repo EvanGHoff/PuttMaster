@@ -13,8 +13,8 @@ ball_lower = (20, 150, 120)  # Yellow
 ball_upper = (40, 235, 255)  # Yellow
 #ball_lower = (0, 180, 150) # Orange
 #ball_upper = (20, 225, 255) # Orange
-hole_lower = (85, 100, 10)      # Black (hole, to be adjusted once the actual hole is constructed) 
-hole_upper = (120, 180, 110) # Black
+hole_lower = (85, 73, 35)      # Black (hole, to be adjusted once the actual hole is constructed) 
+hole_upper = (120, 160, 160) # Black
 #hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
 #hole_upper = (130, 40, 130) # Black
 
@@ -31,7 +31,6 @@ rectangle_detected = False
 ball_out_of_green = False
 
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
-matrix2 = pickle.load(open('Raspberry PI Code/matrixes/matrix2.p','rb'))
 score = 0
 
 vs = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -105,14 +104,14 @@ while True:
                 circles = np.round(circles[0, :]).astype("int")  # Convert to integer values
                 
                 for (x, y, r) in circles:
-                    #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                    cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                     mask = np.zeros(frame.shape[:2], dtype="uint8")
                     cv2.circle(mask, (x, y), r, 255, -1)
                     
                     mean_val = cv2.mean(gray, mask)
                 
                     #print(mean_val, "   ", (x, y, r))
-                    if mean_val[0] < 60 and r > max_radius:  # Ensure it's dark and the largest circle
+                    if mean_val[0] < 100 and r > max_radius:  # Ensure it's dark and the largest circle
                         max_radius = r
                         largest_circle = (x, y, r)
 
@@ -149,6 +148,7 @@ while True:
                     #cv2.circle(frame, center, 5, (0, 0, 255), -1)
                 
                 # Ball starts moving
+                print(np.linalg.norm(np.array(center) - np.array(positions[-1])) / np.linalg.norm(max_values - min_values))
                 if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-1])) / np.linalg.norm(max_values - min_values) > 0.02:
                     print("Ball is hit!")
                     ball_moved = True
@@ -190,14 +190,12 @@ while True:
             cv2.line(corrected_frame, pts[0], hole_center, (0, 255, 255), 2)
 
             if ball_out_of_green:
-                score = 0
                 Add_score.add_score_to_image(corrected_frame, score)
                 break
             else:
                 score = Add_score.get_Score(np.array(pts[0]), np.array(hole_center), dst_points, score)
                 Add_score.add_score_to_image(corrected_frame, score)
         else:
-            score = 0
             Add_score.add_score_to_image(corrected_frame, score)
         
         resized_img = cv2.resize(corrected_frame, (1920, 1080))
@@ -209,6 +207,7 @@ while True:
         cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Corrected Frame", corrected_frame)
+        cv2.moveWindow("Corrected Frame", 1920, 0)
         
         # cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
         key = cv2.waitKey(1) & 0xFF
@@ -218,6 +217,7 @@ while True:
 cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 cv2.imshow("Corrected Frame", corrected_frame)
+cv2.moveWindow("Corrected Frame", 1920, 0)
 cv2.waitKey(0)
 
 vs.release()
