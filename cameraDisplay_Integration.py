@@ -2,7 +2,6 @@
 from collections import deque
 import numpy as np
 import cv2
-import imutils
 import pickle
 import calibrate
 import Add_score
