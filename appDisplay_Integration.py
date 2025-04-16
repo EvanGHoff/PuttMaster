@@ -1,26 +1,40 @@
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, firestore
+import datetime
 
 # Path to your Firebase service account key
-cred = credentials.Certificate("path/to/your-service-account.json")
+cred = credentials.Certificate("Don't Upload\putt-master-firebase-firebase-adminsdk-fbsvc-da7f2a7f2b.json")
 
-# Initialize the app with a service account, granting admin privileges
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://<your-database-name>.firebaseio.com/'  # Replace with your DB URL
-})
+score = 99
 
-# Reference to your database
-ref = db.reference('your/data/path')  # Example: 'users/user1'
+app = firebase_admin.initialize_app(cred)
 
-# Data to send
+db = firestore.client()
+
+miss_reason = {"Too Short", "Too Long", "Left", "Right"}
+
+
 data = {
-    'name': 'Evan Hoffmann',
-    'score': 95,
-    'active': True
+    'made': score==100,
+    'missReason': "Right",
+    'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
 }
 
-# Push data to the database (auto-generates a new key)
-ref.push(data)
 
-# Or set data at a specific path (overwrites existing data at that path)
-# ref.set(data)
+email = "jeramiegomez5@gmail.com"
+
+email = email.replace("@", "_at_").replace(".", ",")
+
+# Reference to the putts subcollection
+putts_ref = db.collection("users").document(email).collection("putts")
+
+# Get all documents in the subcollection
+putts = putts_ref.stream()
+
+n = sum(1 for _ in putts) + 1
+
+db.collection("users").document(email).collection("putts").document(f"putt{n}").set(data)
+
+
+
+print("Finished Running")
