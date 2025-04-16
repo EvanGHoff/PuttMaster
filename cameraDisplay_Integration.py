@@ -2,7 +2,6 @@
 from collections import deque
 import numpy as np
 import cv2
-import imutils
 import pickle
 import calibrate
 import Add_score
@@ -19,7 +18,7 @@ hole_upper = (120, 160, 160) # Black
 #hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
 #hole_upper = (130, 40, 130) # Black
 
-#Parameter Initialization
+# Parameter Initialization
 pts = deque(maxlen=1)
 positions = []  # Store (x, y) positions
 ball_detected = False
@@ -30,18 +29,19 @@ ball_out_of_green = False
 dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
 score = 0
 
-#Camera Initialization and parameter adjustment 
+# Camera Initialization and parameter adjustment 
 vs = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 vs.set(cv2.CAP_PROP_FPS, 60)
 vs.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 vs.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
+# Calibration
 calibrating = False
 if calibrating:
     calibrate.main(vs)
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
-#Main Video Loop
+# Main Video Loop
 while True:
     ret, frame = vs.read()
 
@@ -190,14 +190,14 @@ while True:
                     cv2.line(frame, positions[i - 1], positions[i], (0, 0, 255), 10)
                     cv2.line(corrected_frame, positions[i - 1], positions[i], (255, 255, 255), 10)
 
-        #case 1, stops on the green
+        # case 1, stops on the green
         if len(positions) > 120 and ball_moved:
             distances = np.linalg.norm(np.array(positions[-120:]) - np.array(positions[-1]), axis=1)
             print(np.mean(distances) / np.linalg.norm(max_values - min_values))
             if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.01:
                 print("Ball Stopped. Subsystem Stopping...")
                 break
-            #case 2, out of green
+            # case 2, out of green
             edge_threshold = 20
             near_edge_count = sum(Add_score.is_near_edge(pos, dst_points, edge_threshold) for pos in positions[-120:])
             if near_edge_count > 115 and 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) == 0:
