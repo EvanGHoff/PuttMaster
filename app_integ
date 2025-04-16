@@ -1,0 +1,45 @@
+def determine_putt_result(ball_pos):
+    """Determine if the putt was made or missed"""
+    if ball_pos is None:
+        return None, None
+    
+    # Calculate distance from hole
+    distance = np.sqrt((ball_pos[0] - HOLE_CENTER[0])**2 + (ball_pos[1] - HOLE_CENTER[1])**2)
+    
+    # Check if ball is in hole
+    if distance < HOLE_RADIUS:
+        return True, None  # Made putt
+    
+    # Determine miss direction
+    miss_reason = None
+    for direction, (top_left, bottom_right) in MISS_ZONES.items():
+        if (top_left[0] <= ball_pos[0] <= bottom_right[0] and 
+            top_left[1] <= ball_pos[1] <= bottom_right[1]):
+            miss_reason = direction
+            break
+    
+    return False, miss_reason
+
+def save_putt_to_firebase(made, miss_reason=None):
+    """Save putt data to Firebase"""
+    # Get the next putt number
+    user_ref = db.collection('users').document(USER_EMAIL)
+    putts_ref = user_ref.collection('putts')
+    
+    # Count existing putts to determine next ID
+    putts = putts_ref.stream()
+    count = sum(1 for _ in putts)
+    
+    # Create putt data
+    putt_data = {
+        'made': made,
+        'timestamp': firestore.SERVER_TIMESTAMP,
+        'missReason': miss_reason
+    }
+    
+    # Save with descriptive ID
+    putt_id = f"putt{count + 1}"
+    putts_ref.document(putt_id).set(putt_data)
+    
+    print(f"Saved putt: {putt_id}, Made: {made}, Miss Reason: {miss_reason}")
+    return putt_id
