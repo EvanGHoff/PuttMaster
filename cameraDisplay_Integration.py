@@ -5,6 +5,11 @@ import cv2
 import pickle
 import calibrate
 import Add_score
+import time
+
+prev_time = time.time()
+
+fps_queue = deque(maxlen=10)  # Store the last 50 FPS values
 
 # define the lower and upper boundaries for the ball and hole
 #ball_lower = (20, 150, 120)  # Yellow
@@ -26,8 +31,10 @@ hole_detected = False
 ball_moved = False
 rectangle_detected = False
 ball_out_of_green = False
-dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+
 score = 0
+
+start_time = None
 
 # Camera Initialization and parameter adjustment 
 vs = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -41,6 +48,9 @@ if calibrating:
     calibrate.main(vs)
 print(f"Requested FPS: 60, Got {vs.get(cv2.CAP_PROP_FPS)}")
 
+
+dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPts.p','rb'))
+
 # Main Video Loop
 while True:
     ret, frame = vs.read()
@@ -51,8 +61,8 @@ while True:
         else:
             min_values = np.min(dst_points.astype(int), axis=0)
             max_values = np.max(dst_points.astype(int), axis=0)
-            #print("Min:", min_values)
-            #print("Max:", max_values)
+            print("Min:", min_values)
+            print("Max:", max_values)
             rectangle_detected = True
     
     if rectangle_detected:
@@ -65,7 +75,7 @@ while True:
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
         #ball_mask = cv2.erode(ball_mask, None, iterations=2)
         #ball_mask = cv2.dilate(ball_mask, None, iterations=2)
-        #cv2.imshow("ball mask", ball_mask)
+        cv2.imshow("ball mask", ball_mask)
 
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
@@ -98,8 +108,7 @@ while True:
                     ball_x, ball_y, ball_radius = largest_circle
                     ball_center = (ball_x, ball_y)
                     ball_detected = True
-                    if ball_detected:
-                        print("Ball Detected")
+                    print("Ball Detected")
                     cv2.circle(frame, ball_center, int(ball_radius), (255, 0, 0), 2)
                     cv2.circle(corrected_frame, ball_center, int(ball_radius), (255, 0, 0), 2)
                     positions.append(ball_center)
@@ -178,6 +187,7 @@ while True:
                 #print(center, positions[-2])
                 if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                     print("Ball is hit!")
+                    start_time = time.time()
                     ball_moved = True
 
             elif center is None and positions[-1] is not None:
@@ -216,6 +226,24 @@ while True:
                 Add_score.add_score_to_image(corrected_frame, score)
         else:
             Add_score.add_score_to_image(corrected_frame, score)
+
+
+        current_time = time.time()
+        time_diff = current_time - prev_time
+        prev_time = current_time
+
+        if time_diff > 0:
+            fps = 1.0 / time_diff
+            fps_queue.append(fps)
+        else:
+            fps_queue.append(0)
+
+        avg_fps = sum(fps_queue) / len(fps_queue)  # Moving average FPS
+
+        # Display Smoothed FPS
+        # print(f"FPS of Projector: {avg_fps:.2f}")
+
+        
         
         resized_img = cv2.resize(corrected_frame, (1920, 1080))
 
@@ -227,6 +255,14 @@ while True:
         cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Corrected Frame", corrected_frame)
         cv2.moveWindow("Corrected Frame", 1920, 0)
+
+        if start_time is not None:
+            end_time = time.time()
+
+            # Calculate elapsed time
+            elapsed_time = end_time - start_time
+            print("Time from data to display:", elapsed_time, "seconds")
+            input()
         
         # cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
         key = cv2.waitKey(1) & 0xFF

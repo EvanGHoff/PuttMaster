@@ -24,13 +24,13 @@ def add_score_to_image(image: np.ndarray, score: float) -> np.ndarray:
     if best_x is not None and best_y is not None:
         text = f"Score: {score}"
         cv2.putText(image, text, (best_x, best_y + 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, .7, (255, 255, 255), 2, cv2.LINE_AA)
     else:
         best_x = 0
         best_y = 0
         text = f"Score: {score}"
         cv2.putText(image, text, (best_x, best_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, .7, (255, 255, 255), 2, cv2.LINE_AA)
         #print("Warning: No empty space found for text placement.")
 
     

@@ -141,6 +141,52 @@ def detect_aruco_markers(cap):
     return None  # Return None if detection fails
 
 
+def manually_select_points(cap):
+    """
+    Allows the user to manually select 4 points from the video feed when marker detection fails.
+    Returns the selected points as a numpy array of shape (4, 2).
+    """
+    selected_points = []
+
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if len(selected_points) < 4:
+                selected_points.append((x, y))
+                print(f"Point {len(selected_points)}: ({x}, {y})")
+
+    cv2.namedWindow("Manual Point Selection")
+    cv2.setMouseCallback("Manual Point Selection", mouse_callback)
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Draw selected points
+        for idx, point in enumerate(selected_points):
+            cv2.circle(frame, point, 5, (0, 255, 0), -1)
+            cv2.putText(frame, f"{idx+1}", point, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+
+        cv2.imshow("Manual Point Selection", frame)
+
+        key = cv2.waitKey(1) & 0xFF
+
+        if len(selected_points) == 4:
+            print("Four points selected.")
+            break
+
+        if key == ord('q'):
+            print("Manual selection canceled.")
+            selected_points = []
+            break
+
+    cv2.destroyAllWindows()
+
+    if len(selected_points) == 4:
+        return np.array(selected_points, dtype="float32")
+    else:
+        return None
+
 def detect_green_rectangle(cap):
     """
     Detects a specific green rectangular shape, applies perspective transformation,
@@ -159,8 +205,8 @@ def detect_green_rectangle(cap):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         
         # Green Mat
-        green_lower = (60, 150, 20)
-        green_upper = (95, 255, 150)
+        green_lower = (60, 90, 15)
+        green_upper = (100, 255, 167)
 
         # Green Paper
         #green_lower = (45, 80, 45)
@@ -241,7 +287,7 @@ def my_warp(image):
 
     matrix1 = cv2.getPerspectiveTransform(Aruco_cam, Aruco_proj)
 
-    green_cam = pickle.load(open('Raspberry PI Code/matrixes/dstPTS.p','rb'))
+    green_cam = pickle.load(open('Raspberry PI Code/matrixes/dstPts.p','rb'))
     
     green_cam_hc = np.hstack((green_cam, [[1], [1], [1], [1]]))
     
@@ -256,7 +302,7 @@ def my_warp(image):
     out_image = cv2.warpPerspective(image, matrix2, (1920, 1080))
 
     return out_image
-    
+
 
 def main(cap):
 
@@ -266,7 +312,8 @@ def main(cap):
 
     # src
     display_markers()
-    src_points = detect_aruco_markers(cap)
+    # src_points = detect_aruco_markers(cap)
+    src_points = manually_select_points(cap)
     print("Markers Detected:", src_points)
     cv2.destroyAllWindows()
     pickle.dump(src_points, open('Raspberry PI Code/matrixes/srcPts.p','wb'))
@@ -275,6 +322,7 @@ def main(cap):
     rectangle()
     cv2.waitKey(1)
     dst_points = detect_green_rectangle(cap)
+    # dst_points = manually_select_points(cap)
     dst_points = order_pts(dst_points)
     print("Green Detected:", dst_points)
     pickle.dump(dst_points, open('Raspberry PI Code/matrixes/dstPts.p','wb'))
