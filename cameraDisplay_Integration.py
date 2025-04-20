@@ -277,3 +277,14 @@ cv2.waitKey(0)
 
 vs.release()
 cv2.destroyAllWindows()
+
+print("Ball is hit!")
+start_time = time.time()
+
+# Intermediate Code...
+
+cv2.imshow("Corrected Frame", corrected_frame)
+if start_time is not None:
+    end_time = time.time()
+elapsed_time = end_time - start_time
+print("Time from data to display:", elapsed_time, "seconds")
