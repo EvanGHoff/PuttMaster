@@ -19,20 +19,20 @@ def estimateProjRemoverH(locsIn):
     #ltop, lbot, rtop, rbot = locsIn.copy()
     ltop.append(1); lbot.append(1); rtop.append(1); rbot.append(1); #change to HC
     ltop = np.array(ltop); lbot = np.array(lbot); rtop = np.array(rtop); rbot = np.array(rbot)
-    print('ltop = ',ltop, ', lbot = ', lbot, ', rtop = ', rtop, ', rbot = ', rbot)
+    #print('ltop = ',ltop, ', lbot = ', lbot, ', rtop = ', rtop, ', rbot = ', rbot)
     
     #to get VP1
     l1 = np.cross(ltop,lbot); l2 = np.cross(rtop,rbot);
     vp1 = np.cross(l1,l2)
-    print('VP1 = ', vp1)
+    #print('VP1 = ', vp1)
     #to get VP2
     l1 = np.cross(ltop,rtop); l2 = np.cross(lbot,rbot)
     vp2 = np.cross(l1,l2)
-    print("VP2 = ", vp2)
+    #print("VP2 = ", vp2)
     #to get VL
     vl = np.cross(vp1,vp2)
     vl = vl/vl[2]
-    print("Vanishing line = ", vl)
+    #print("Vanishing line = ", vl)
     #to calculate Hp matrix
     Hp = np.array([[1,0,0], [0,1,0]])
     Hp = np.append(Hp,vl)
@@ -98,7 +98,7 @@ def calcHomographyAffine(P,Q,R,S):
 
 def green2screen(locsIn):
     '''
-    Author: Manu Ramesh
+    Author: Manu Ramesh                
     locsIn must be in this order - left top, left bottom, right top, right bottom
     Example: locsIn = [[478,721], [481,873], [600,739], [605,921]]
 
@@ -115,7 +115,7 @@ def green2screen(locsIn):
     locsNoProj_notHC = locsNoProj[0:2,:].T.tolist()
     locsNoProj = locsNoProj.T.tolist() #Retain HC
 
-    print(f"\n\nLocs no Proj = {locsNoProj}\n\n")
+    # print(f"\n\nLocs no Proj = {locsNoProj}\n\n")
 
     #Remove Affine distortion
     #Haf = estimateAffRemoverH(np.array(locsNoProj))
@@ -123,7 +123,7 @@ def green2screen(locsIn):
     #pdb.set_trace()
     Haf = calcHomographyAffine(locsNoProj[0], locsNoProj[2], locsNoProj[3], locsNoProj[1])
 
-    print(f"Haf = {Haf}")
+    # print(f"Haf = {Haf}")
 
     #pdb.set_trace()
     locsNoProj = [locsNoProj[0], locsNoProj[2], locsNoProj[3], locsNoProj[1]] #change order to Tejas Pant's order
@@ -135,7 +135,7 @@ def green2screen(locsIn):
     locsNoAf_notHC = locsNoAf[0:2,:].T.tolist()
     locsNoAf = locsNoAf.T.tolist() #preserve HC
     
-    print(f"Locs no AF = {locsNoAf}")
+    # print(f"Locs no AF = {locsNoAf}")
     
 
     #Order has changed - top left, top right, bottom right, bottom left
@@ -151,31 +151,31 @@ def green2screen(locsIn):
     if AspectRatio > 1: #horizontal rectangle
         Ps, Qs, Rs, Ss = [0,0], [1920, 0], [1920, 1080/AspectRatio], [0, 1080/AspectRatio] 
     else: #vertical rectangle, we need to rotate the screen by 90 degrees
-        Qs, Rs, Ss, Ps = [0,0], [1920, 0], [1920, 1080/AspectRatio], [0, 1080/AspectRatio] 
+        Qs, Rs, Ss, Ps = [0,0], [1920, 0], [1920, 1080*AspectRatio], [0, 1080*AspectRatio] 
 
     screen_coords = [Ps, Qs, Rs, Ss]
-    print(f"Screen coordinates = {screen_coords}")
+    # print(f"Screen coordinates = {screen_coords}")
 
     #no Affine to screen
-    pdb.set_trace()
+    # pdb.set_trace()
     Hs = cv2.getPerspectiveTransform(np.array(locsNoAf_notHC).astype(np.float32), np.array([Ps, Qs, Rs, Ss]).astype(np.float32))
-    print(f"Hs = {Hs}")
+    # print(f"Hs = {Hs}")
 
 
     #the final homography matrix to take points from green to screen
     H_g2s = np.matmul(Haf, Hp)
     H_g2s = np.matmul(Hs, H_g2s)
 
-    print(f"H_g2s = {H_g2s}")
+    # print(f"H_g2s = {H_g2s}")
 
     #H_g2s = np.linalg.inv(H_g2s) #this is the final homography matrix to take points from green to screen
 
-    #intermediatePTS = np.array(locsNoAf_notHC); H_g2s = np.matmul(Haf, Hp)
-    #intermediatePTS = np.array(locsNoProj_notHC); H_g2s = Hp
+    # intermediatePTS = np.array(locsNoAf_notHC); H_g2s = np.matmul(Haf, Hp)
+    # intermediatePTS = np.array(locsNoProj_notHC); H_g2s = Hp
 
     
 
-    return H_g2s, screen_coords
+    return H_g2s, screen_coords, AspectRatio
 
 '''
 Instructions:
