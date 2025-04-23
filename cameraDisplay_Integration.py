@@ -66,7 +66,7 @@ while True:
             rectangle_detected = True
     
     if rectangle_detected:
-        frame = frame.copy()[min_values[1]:max_values[1], min_values[0]:max_values[0]]
+        frame = frame[min_values[1]:max_values[1], min_values[0]:max_values[0]]
         corrected_frame = np.zeros((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
 
         #calibrate.rectangle()
@@ -81,9 +81,9 @@ while True:
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
         #hole_mask = cv2.erode(hole_mask, None, iterations=2)
         #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
-        #cv2.imshow("hole_mask", hole_mask)
+        cv2.imshow("hole_mask", hole_mask)
         
-        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
         circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=30,
                                     param1=50, param2=30, minRadius=5, maxRadius=100)
@@ -95,7 +95,7 @@ while True:
                 circles1 = np.round(circles[0, :]).astype("int")  # Convert to integer values
                 
                 for (x, y, r) in circles1:
-                    #cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+                    cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
                     mask = np.zeros(frame.shape[:2], dtype="uint8")
                     cv2.circle(mask, (x, y), r, 255, -1)
                     
@@ -242,8 +242,6 @@ while True:
 
         # Display Smoothed FPS
         # print(f"FPS of Projector: {avg_fps:.2f}")
-
-        
         
         resized_img = cv2.resize(corrected_frame, (1920, 1080))
 
@@ -261,8 +259,8 @@ while True:
 
             # Calculate elapsed time
             elapsed_time = end_time - start_time
-            print("Time from data to display:", elapsed_time, "seconds")
-            input()
+            # print("Time from data to display:", elapsed_time, "seconds")
+            # input()
         
         # cv2.setWindowProperty("Frame", cv2.WND_PROP_TOPMOST, 1)
         key = cv2.waitKey(1) & 0xFF

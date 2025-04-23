@@ -321,8 +321,8 @@ def main(cap):
     # dst
     rectangle()
     cv2.waitKey(1)
-    dst_points = detect_green_rectangle(cap)
-    # dst_points = manually_select_points(cap)
+    # dst_points = detect_green_rectangle(cap)
+    dst_points = manually_select_points(cap)
     dst_points = order_pts(dst_points)
     print("Green Detected:", dst_points)
     pickle.dump(dst_points, open('Raspberry PI Code/matrixes/dstPts.p','wb'))
