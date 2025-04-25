@@ -6,8 +6,13 @@ import pickle
 import calibrate
 import Add_score
 import green2screen
+import green2screen2
 import imutils
 import time
+
+# size in in inches
+green_width = 3*12
+green_length = 48
 
 prev_time = time.time()
 
@@ -65,25 +70,34 @@ while True:
     ret, frame = vs.read()
 
 
-    frame = cv2.warpPerspective(frame, homog_matrix, (1920, 1080))
-    test_frame = frame
+    # frame = cv2.warpPerspective(frame, homog_matrix, (1920, 1080))
     # test_frame = cv2.resize(test_frame, (1280, 720))
-    cv2.imshow("test_frame", test_frame)
+    
     # input()
 
     if not rectangle_detected:  
         if camera_points is None:
             break
         else:
-            min_values = np.min(np.array(camera_points).astype(int), axis=0)
-            max_values = np.max(np.array(camera_points).astype(int), axis=0)
+            min_values = np.min(np.array(dst_points).astype(int), axis=0)
+            max_values = np.max(np.array(dst_points).astype(int), axis=0)
             print("Min:", min_values)
             print("Max:", max_values)
             rectangle_detected = True
     
+    cv2.imshow("test_frame", frame)
+
     if rectangle_detected:
-        frame = frame[min_values[1]:max_values[1], min_values[0]:max_values[0]]
-        corrected_frame = np.zeros_like(frame) #((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
+        # frame = frame[min_values[1]:max_values[1], min_values[0]:max_values[0]]
+         #((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
+
+        # frame4by3 = np.zeros([1080, 1440], dtype=np.uint8)
+        matrix3by4 = cv2.getPerspectiveTransform(dst_points, np.array([[0, 0], [1440-1, 0], [1440-1, 1080-1], [0, 1080-1]], dtype=np.float32))
+        frame = cv2.warpPerspective(frame, matrix3by4, (1440, 1080))
+
+        cv2.imshow("testing Image", frame)
+
+        corrected_frame = np.zeros_like(frame)
 
         #calibrate.rectangle()
 
@@ -91,13 +105,13 @@ while True:
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
         #ball_mask = cv2.erode(ball_mask, None, iterations=2)
         #ball_mask = cv2.dilate(ball_mask, None, iterations=2)
-        cv2.imshow("ball mask", ball_mask)
+        # cv2.imshow("ball mask", ball_mask)
 
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
         #hole_mask = cv2.erode(hole_mask, None, iterations=2)
         #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
-        cv2.imshow("hole_mask", hole_mask)
+        # cv2.imshow("hole_mask", hole_mask)
 
         ball_cnt = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         ball_cnts = imutils.grab_contours(ball_cnt)
@@ -279,16 +293,17 @@ while True:
         
         resized_img = cv2.resize(corrected_frame, (1920, 1080))
 
-        cv2.imshow("resized", cv2.resize(resized_img, (640, 360)))
+        # cv2.imshow("resized", cv2.resize(resized_img, (640, 360)))
 
-        if aspect_ratio <= 1:
-            resized_img = cv2.rotate(resized_img, cv2.ROTATE_90_CLOCKWISE)
-            resized_img = cv2.resize(resized_img, (1920, 1080))
+        #if aspect_ratio <= 1:
+        #    resized_img = cv2.rotate(resized_img, cv2.ROTATE_90_CLOCKWISE)
+        #    resized_img = cv2.resize(resized_img, (1920, 1080))
 
         corrected_frame = calibrate.my_warp(resized_img)
         # corrected_frame = cv2.warpPerspective(image, matrix2, (1920, 1080))
 
-        cv2.imshow("Frame", frame)
+        # cv2.imshow("Frame", frame)
+        cv2.imshow("Here!!!", corrected_frame)
         cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Corrected Frame", corrected_frame)
