@@ -291,7 +291,8 @@ while True:
         # Display Smoothed FPS
         # print(f"FPS of Projector: {avg_fps:.2f}")
         
-        resized_img = cv2.resize(corrected_frame, (1920, 1080))
+        
+        resized_img = corrected_frame #cv2.resize(corrected_frame, (1920, 1080))
 
         # cv2.imshow("resized", cv2.resize(resized_img, (640, 360)))
 
