@@ -60,7 +60,7 @@ dst_points = pickle.load(open('Raspberry PI Code/matrixes/dstPts.p','rb'))
 
 homog_matrix, camera_points, aspect_ratio = green2screen.green2screen([dst_points[0], dst_points[3], dst_points[1], dst_points[2]])
 
-print(camera_points)
+#print(camera_points)
 # input()
 
 
@@ -85,7 +85,7 @@ while True:
             print("Max:", max_values)
             rectangle_detected = True
     
-    cv2.imshow("test_frame", frame)
+    #cv2.imshow("test_frame", frame)
 
     if rectangle_detected:
         # frame = frame[min_values[1]:max_values[1], min_values[0]:max_values[0]]
@@ -95,7 +95,7 @@ while True:
         matrix3by4 = cv2.getPerspectiveTransform(dst_points, np.array([[0, 0], [1440-1, 0], [1440-1, 1080-1], [0, 1080-1]], dtype=np.float32))
         frame = cv2.warpPerspective(frame, matrix3by4, (1440, 1080))
 
-        cv2.imshow("testing Image", frame)
+        
 
         corrected_frame = np.zeros_like(frame)
 
@@ -105,7 +105,7 @@ while True:
         ball_mask = cv2.inRange(hsv, ball_lower, ball_upper)
         #ball_mask = cv2.erode(ball_mask, None, iterations=2)
         #ball_mask = cv2.dilate(ball_mask, None, iterations=2)
-        # cv2.imshow("ball mask", ball_mask)
+        cv2.imshow("ball mask", ball_mask)
 
         hole_mask = cv2.inRange(hsv, hole_lower, hole_upper)
         #hole_mask = cv2.GaussianBlur(hole_mask, (9, 9), 2)
@@ -113,22 +113,23 @@ while True:
         #hole_mask = cv2.dilate(hole_mask, None, iterations=2)
         # cv2.imshow("hole_mask", hole_mask)
 
-        ball_cnt = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        ball_cnts = imutils.grab_contours(ball_cnt)
+        #ball_cnt = cv2.findContours(ball_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        #ball_cnts = imutils.grab_contours(ball_cnt)
 
+        '''
         if ball_cnts and not ball_detected:
             print("Ball Detected")
             ball_detected = True
             c = max(ball_cnts, key=cv2.contourArea)
             ((ball_x, ball_y), ball_radius) = cv2.minEnclosingCircle(c)
             ball_center = (int(ball_x), int(ball_y))
-            positions.append(ball_center)
+            positions.append(ball_center)'''
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_blurred = cv2.GaussianBlur(gray, (9, 9), 2)
         circles = cv2.HoughCircles(gray_blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=30,
-                                    param1=50, param2=30, minRadius=5, maxRadius=100)
-        '''
+                                    param1=50, param2=30, minRadius=5, maxRadius=30)
+        
         if not ball_detected:
             largest_circle = None
             max_radius = 0
@@ -152,7 +153,7 @@ while True:
                     print("Ball Detected")
                     cv2.circle(frame, ball_center, int(ball_radius), (255, 0, 0), 2)
                     cv2.circle(corrected_frame, ball_center, int(ball_radius), (255, 0, 0), 2)
-                    positions.append(ball_center)'''
+                    positions.append(ball_center)
         
         # Detect circles using Hough Circle Transform
         if not hole_detected:
@@ -186,13 +187,13 @@ while True:
                     cv2.circle(corrected_frame, hole_center, int(hole_radius), (255, 0, 0), 2)
 
         center = None
-        if len(ball_cnts) > 0 and  ball_detected and hole_detected: 
+        if ball_detected and hole_detected: 
             optimal_trajectory = (ball_center, hole_center)
             cv2.line(frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 10)
             cv2.line(corrected_frame, optimal_trajectory[0], optimal_trajectory[1], (0, 255, 0), 10)
             cv2.circle(frame, hole_center, int(hole_radius), (255, 0, 0), 2)
             cv2.circle(corrected_frame, hole_center, int(hole_radius), (255, 0, 0), 2)
-            '''
+            
             if circles is not None:
                 largest_circle = None
                 max_radius = 0
@@ -214,15 +215,15 @@ while True:
                     center = (ball_x, ball_y)
                     #cv2.circle(frame, ball_center, int(radius), (255, 0, 0), 2)
                     #cv2.circle(corrected_frame, ball_center, int(radius), (255, 0, 0), 2)
-                    positions.append(center)'''
-            
+                    positions.append(center)
+            '''
             c = max(ball_cnts, key=cv2.contourArea)
             ((x, y), radius) = cv2.minEnclosingCircle(c)
             M = cv2.moments(c)
             if M["m00"] != 0:
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))'''
             
-            if  center is not None and positions[-1] is not None and len(ball_cnts) > 0:
+            if  center is not None and positions[-1] is not None:
                 if radius > 0:
                     cv2.circle(frame, center, int(radius), (0, 255, 255), 2)
                     cv2.circle(corrected_frame, center, int(radius), (0, 255, 255), 2)
@@ -251,7 +252,7 @@ while True:
         # case 1, stops on the green
         if len(positions) > 120 and ball_moved:
             distances = np.linalg.norm(np.array(positions[-120:]) - np.array(positions[-1]), axis=1)
-            print(np.mean(distances) / np.linalg.norm(max_values - min_values))
+            #print(np.mean(distances) / np.linalg.norm(max_values - min_values))
             if 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) < 0.01:
                 print("Ball Stopped. Subsystem Stopping...")
                 break
@@ -289,7 +290,7 @@ while True:
         avg_fps = sum(fps_queue) / len(fps_queue)  # Moving average FPS
 
         # Display Smoothed FPS
-        # print(f"FPS of Projector: {avg_fps:.2f}")
+        print(f"FPS of Projector: {avg_fps:.2f}")
         
         
         resized_img = corrected_frame #cv2.resize(corrected_frame, (1920, 1080))
@@ -304,6 +305,7 @@ while True:
         # corrected_frame = cv2.warpPerspective(image, matrix2, (1920, 1080))
 
         # cv2.imshow("Frame", frame)
+        cv2.imshow("testing Image", frame)
         cv2.imshow("Here!!!", corrected_frame)
         cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)

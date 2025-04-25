@@ -295,7 +295,8 @@ def my_warp(image):
     green_proj = green_proj / [[x] for x in green_proj[:,-1]]
     green_proj = green_proj[:,:2].astype(int).astype(np.float32)
 
-    screen_proj = np.array([ [0, 0], [1920, 0], [1920, 1080], [0, 1080] ], np.float32)
+    # screen_proj = np.array([ [0, 0], [1920, 0], [1920, 1080], [0, 1080] ], np.float32)
+    screen_proj = np.array([ [0, 0], [1440-1, 0], [1440-1, 1080-1], [0, 1080-1] ], np.float32)
     # pdb.set_trace()
     matrix2 = cv2.getPerspectiveTransform(screen_proj, green_proj)
 
