@@ -23,14 +23,17 @@ def add_score_to_image(image: np.ndarray, score: float) -> np.ndarray:
     # If a valid spot is found, draw the text
     if best_x is not None and best_y is not None:
         text = f"Score: {score}"
-        cv2.putText(image, text, (best_x, best_y + 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, .7, (255, 255, 255), 2, cv2.LINE_AA)
+        best_x = 20
+        best_y = 1000
+        #print(best_x, best_y)
+        cv2.putText(image, text, (best_x, best_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 7, cv2.LINE_AA)
     else:
-        best_x = 0
-        best_y = 0
+        best_x = 900
+        best_y = 20
         text = f"Score: {score}"
         cv2.putText(image, text, (best_x, best_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, .7, (255, 255, 255), 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 7, cv2.LINE_AA)
         #print("Warning: No empty space found for text placement.")
 
     
@@ -48,7 +51,7 @@ def get_Score(ball_pos, hole_pos, green_corners, curr_score):
 
     max_dist = max(gr_dist1, gr_dist2, gr_dist3, gr_dist4)
  
-    return max(curr_score, int(100 - (100 * (dist / max_dist))))
+    return max(curr_score, int(101 - (100 * (dist / max_dist))))
 
 def is_near_edge(ball_pos, green_corners, edge_threshold):
     #ball_x, ball_y = ball_pos
