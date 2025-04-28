@@ -3,12 +3,7 @@ from firebase_admin import credentials, firestore
 import datetime
 
 
-def sendData(user, score):
-    # Path to your Firebase service account key
-    cred = credentials.Certificate("..\Don't Upload\putt-master-firebase-firebase-adminsdk-fbsvc-da7f2a7f2b.json")
-
-
-    app = firebase_admin.initialize_app(cred)
+def sendData(user, score, finalPts):
 
     db = firestore.client()
 
@@ -18,11 +13,13 @@ def sendData(user, score):
     data = {
         'made': score==100,
         'missReason': "Right",
+        'speed': finalPts[0],
+        'facing angle': finalPts[1],
         'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
     }
 
-    email = "jeramiegomez5@gmail.com"
-    email = email.replace("@", "_at_").replace(".", ",")
+    email = str(user).replace("@", "_at_").replace(".", ",")
+    print(email)
     # Reference to the putts subcollection
     putts_ref = db.collection("users").document(email).collection("putts")
 

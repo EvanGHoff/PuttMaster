@@ -4,6 +4,13 @@ import threading
 import cv2
 import calibrate
 import runDetection
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+
+# Path to your Firebase service account key
+cred = credentials.Certificate("..\Don't Upload\putt-master-firebase-firebase-adminsdk-fbsvc-da7f2a7f2b.json")
+app = firebase_admin.initialize_app(cred)
 
 def example_function(username):
     # Simulate work being done
@@ -58,11 +65,18 @@ class FullScreenApp:
 
         # Buttons
         self.button1 = tk.Button(self.frame, text="Run Calibration", font=("Arial", 18),
-                                 command=lambda: self.run_task(calibrate.main(self.vs)))
+                         command=lambda: self.run_task(lambda: calibrate.main(self.vs)))
         self.button1.pack(pady=20)
 
         self.button2 = tk.Button(self.frame, text="Start Putt", font=("Arial", 18),
-                                 command=lambda: self.run_task(runDetection.cameraDetection(self.vs, self.option1_var.get(), self.option2_var.get(), self.option3_var.get(), self.option4_var.get(), self.username_entry.get())))
+                         command=lambda: self.run_task(lambda: runDetection.cameraDetection(
+                             self.vs,
+                             self.option1_var.get(),
+                             self.option2_var.get(),
+                             self.option3_var.get(),
+                             self.option4_var.get(),
+                             self.username_entry.get()
+                         )))
         self.button2.pack(pady=20)
 
         # Confirmation message
@@ -76,6 +90,7 @@ class FullScreenApp:
 
     def run_task(self, task_func):
         username = self.username_entry.get()
+        print(f"Username: {username}")
         if not username:
             messagebox.showerror("Input Error", "Please enter a username.")
             return
@@ -87,7 +102,7 @@ class FullScreenApp:
         threading.Thread(target=self._task_wrapper, args=(task_func, username)).start()
 
     def _task_wrapper(self, task_func, username):
-        task_func(username)  # Run the function
+        task_func()  # Run the function
         # After task completes, update the GUI
         self.confirmation_label.config(text=f"Task completed for user: {username}")
 

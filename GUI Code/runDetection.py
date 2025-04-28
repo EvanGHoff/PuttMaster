@@ -3,6 +3,8 @@ from collections import deque
 import numpy as np
 import cv2
 import pickle
+import threading
+import requests
 import calibrate
 import Add_score
 import green2screen
@@ -10,11 +12,83 @@ import sendData
 import time
 
 
+def sensor_reader(url, sensor_data_buffer):
+    while True:
+        try:
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                data = response.text.strip()
+                # print(f"Sensor Data: {data}")
+                sensor_data_buffer.append(data)
+                # print(sensor_data_buffer)
+            else:
+                print(f"Failed to retrieve data. HTTP Status code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching data from ESP32: {e}")
+
+        time.sleep(0.1)  # 100ms delay between readings
+
+def process_last_sensor_data(sensor_data_buffer):
+    speed = 0
+    max_speed = 0
+    corresponding_facing_angle = 0
+
+    dt = 0.1  # Time between readings (seconds)
+
+    for point in sensor_data_buffer:
+        try:
+            # Split the string into Accel and Gyro parts
+            accel_part, gyro_part = point.split('\n')
+
+            # Extract Accel values
+            accel_values = {}
+            for item in accel_part.split('|'):
+                key, value = item.strip().split(':')
+                accel_values[key.strip()] = float(value.strip())
+
+            # Extract Gyro values
+            gyro_values = {}
+            for item in gyro_part.split('|'):
+                key, value = item.strip().split(':')
+                gyro_values[key.strip()] = float(value.strip().replace(' dps', ''))
+
+            # Calculate acceleration magnitude (m/s²)
+            accel_x = accel_values['Accel X'] / 256 * 9.8
+            accel_y = accel_values['Accel Y'] / 256 * 9.8
+            accel_z = accel_values['Accel Z'] / 256 * 9.8
+            accel_magnitude = (accel_x ** 2 + accel_y ** 2 + accel_z ** 2) ** 0.5
+
+            # Update speed by integrating acceleration
+            speed += accel_magnitude * dt
+
+            # Update max speed if needed
+            if speed > max_speed:
+                max_speed = speed
+                corresponding_facing_angle = gyro_values['Gyro Z']
+
+        except Exception as e:
+            print(f"Error parsing data point: {point} -> {e}")
+
+    print(f"Max Speed: {max_speed:.2f} m/s")
+    print(f"Corresponding Facing Angle (Gyro Z): {corresponding_facing_angle:.2f} degrees")
+    return [round(max_speed, 2), round(corresponding_facing_angle, 2)]
+
+
+
+
 def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, displayHoleMask, user):
-
     prev_time = time.time()
-
     fps_queue = deque(maxlen=50)  # Store the last 50 FPS values
+
+    # Replace with your ESP32's IP address
+    esp32_ip = "http://192.168.220.91"
+    url = f"{esp32_ip}"
+
+    # Shared buffer to store last 10 sensor readings
+    sensor_data_buffer = deque(maxlen=10)
+
+    # Start the background thread, now passing the right arguments!
+    threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer), daemon=True).start()
 
     # define the lower and upper boundaries for the ball and hole
     #ball_lower = (80, 25, 130)  # White
@@ -65,20 +139,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
     while True:
         start_time = time.time()
         ret, frame = vs.read()
-        # frame = cv2.warpPerspective(frame, homog_matrix, (1920, 1080))
-        # test_frame = cv2.resize(test_frame, (1280, 720))
-        
-        #print("Min:", min_values)
-        #print("Max:", max_values)
 
-        
-        #cv2.imshow("test_frame", frame)
-
-        
-        # frame = frame[min_values[1]:max_values[1], min_values[0]:max_values[0]]
-            #((max_values[1] - min_values[1], max_values[0] - min_values[0], 3), dtype=np.uint8)
-
-        # frame4by3 = np.zeros([1080, 1440], dtype=np.uint8)
         
         matrix3by4 = cv2.getPerspectiveTransform(dst_points, np.array([[0, 0], [1440-1, 0], [1440-1, 1080-1], [0, 1080-1]], dtype=np.float32))
         frame = cv2.warpPerspective(frame, matrix3by4, (1440, 1080))
@@ -221,7 +282,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
                 if len(positions) > 2:
                     if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                         print("Ball is hit!")
-                        
+                        finalPts = process_last_sensor_data(sensor_data_buffer)
                         ball_moved = True
 
             elif center is None and positions[-1] is not None:
@@ -302,7 +363,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
         if key == ord("q"):
             break
 
-    sendData.sendData(user, score)
+    sendData.sendData(user, score, finalPts)
 
     corrected_frame = calibrate.my_warp(corrected_frame)
     cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
