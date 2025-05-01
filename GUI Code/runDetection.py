@@ -12,8 +12,8 @@ import sendData
 import time
 
 
-def sensor_reader(url, sensor_data_buffer):
-    while True:
+def sensor_reader(url, sensor_data_buffer, stop_event):
+    while not stop_event.is_set():
         try:
             response = requests.get(url, timeout=2)
             if response.status_code == 200:
@@ -87,8 +87,9 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
     # Shared buffer to store last 10 sensor readings
     sensor_data_buffer = deque(maxlen=10)
 
-    # Start the background thread, now passing the right arguments!
-    threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer), daemon=True).start()
+    stop_event = threading.Event()
+    sensor_thread = threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer, stop_event), daemon=True)
+    sensor_thread.start()
 
     # define the lower and upper boundaries for the ball and hole
     #ball_lower = (80, 25, 130)  # White
@@ -121,7 +122,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
     dst_points = pickle.load(open('matrixes/dstPts.p','rb'))
     number_of_frame = 30
 
-    homog_matrix, camera_points, aspect_ratio = green2screen.green2screen([dst_points[0], dst_points[3], dst_points[1], dst_points[2]])
+    # homog_matrix, camera_points, aspect_ratio = green2screen.green2screen([dst_points[0], dst_points[3], dst_points[1], dst_points[2]])
 
     #dst_points = None
     #print(camera_points)
@@ -283,6 +284,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
                     if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                         print("Ball is hit!")
                         finalPts = process_last_sensor_data(sensor_data_buffer)
+                        stop_event.set()
                         ball_moved = True
 
             elif center is None and positions[-1] is not None:

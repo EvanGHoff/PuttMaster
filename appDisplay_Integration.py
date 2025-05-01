@@ -17,11 +17,13 @@ miss_reason = {"Too Short", "Too Long", "Left", "Right"}
 data = {
     'made': score==100,
     'missReason': "Right",
+    'speed': 20,
+    'facingAngle': 50,
     'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
 }
 
 
-email = "jeramiegomez5@gmail.com"
+email = "Logtest3@gmail.com"
 
 email = email.replace("@", "_at_").replace(".", ",")
 
@@ -33,7 +35,7 @@ putts = putts_ref.stream()
 
 n = sum(1 for _ in putts) + 1
 
-db.collection("users").document(email).collection("putts").document(f"putt{n}").set(data)
+db.collection("users").document(email).collection("putts").document(f"putt{i}").set(data)
 
 
 
