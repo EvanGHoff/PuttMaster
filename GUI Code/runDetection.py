@@ -12,6 +12,16 @@ import sendData
 import time
 
 
+# Assumes ball and hole are separated on the x axis
+def findMissDir(hole_center, ball_start, ball_end):
+    x_diff = hole_center[0] - ball_end[0]
+    y_diff = hole_center[1] - ball_end[1]
+    if ball_start[0] > hole_center[0]: # Ball starts on the right
+        return "Short" if abs(x_diff) > abs(y_diff) and x_diff < 0 else ("Left" if y_diff < 0 else "Right")
+    else: # Ball starts on the left
+        return "Short" if abs(x_diff) > abs(y_diff) and x_diff > 0 else ("Left" if y_diff > 0 else "Right")
+
+
 def sensor_reader(url, sensor_data_buffer, stop_event):
     while not stop_event.is_set():
         try:
@@ -88,7 +98,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
     sensor_data_buffer = deque(maxlen=10)
 
     stop_event = threading.Event()
-    sensor_thread = threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer, stop_event), daemon=True)
+    sensor_thread = threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer, stop_event))  #, daemon=True
     sensor_thread.start()
 
     # define the lower and upper boundaries for the ball and hole
@@ -365,7 +375,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
         if key == ord("q"):
             break
 
-    sendData.sendData(user, score, finalPts)
+    sendData.sendData(user, score, finalPts, findMissDir(hole_center, position[0], position[-1]))
 
     corrected_frame = calibrate.my_warp(corrected_frame)
     cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
