@@ -12,6 +12,8 @@ from firebase_admin import credentials, firestore
 cred = credentials.Certificate("..\Don't Upload\putt-master-firebase-firebase-adminsdk-fbsvc-da7f2a7f2b.json")
 app = firebase_admin.initialize_app(cred)
 
+stop_event = threading.Event()
+
 def example_function(username):
     # Simulate work being done
     import time
@@ -39,6 +41,7 @@ class FullScreenApp:
         self.username_label.pack(pady=10)
 
         self.username_entry = tk.Entry(self.frame, font=("Arial", 18))
+        self.username_entry.insert(0, "demo@gmail.com")
         self.username_entry.pack(pady=10)
 
         # Checkboxes
@@ -46,6 +49,7 @@ class FullScreenApp:
         self.option2_var = tk.BooleanVar()
         self.option3_var = tk.BooleanVar()
         self.option4_var = tk.BooleanVar()
+        self.option5_var = tk.BooleanVar()
 
         self.checkbox1 = tk.Checkbutton(self.frame, text="Camera Frame", font=("Arial", 16),
                                         variable=self.option1_var)
@@ -63,6 +67,10 @@ class FullScreenApp:
                                         variable=self.option4_var)
         self.checkbox4.pack(pady=5)
 
+        self.checkbox4 = tk.Checkbutton(self.frame, text="Sensors", font=("Arial", 16),
+                                        variable=self.option5_var)
+        self.checkbox4.pack(pady=5)
+
         # Buttons
         self.button1 = tk.Button(self.frame, text="Run Calibration", font=("Arial", 18),
                          command=lambda: self.run_task(lambda: calibrate.main(self.vs)))
@@ -75,7 +83,9 @@ class FullScreenApp:
                              self.option2_var.get(),
                              self.option3_var.get(),
                              self.option4_var.get(),
-                             self.username_entry.get()
+                             self.option5_var.get(),
+                             self.username_entry.get(),
+                             stop_event
                          )))
         self.button2.pack(pady=20)
 
@@ -107,6 +117,23 @@ class FullScreenApp:
         self.confirmation_label.config(text=f"Task completed for user: {username}")
 
     def close(self):
+        print("[INFO] Exiting...")
+
+        # Release camera resource if open
+        if self.vs and self.vs.isOpened():
+            self.vs.release()
+
+        # Close all OpenCV windows
+        cv2.destroyAllWindows()
+
+        try:
+            if runDetection:
+                stop_event.set()
+        except Exception as e:
+            print(f"[WARN] runDetection stop failed: {e}")
+
+        # Quit the GUI
+        self.master.quit()
         self.master.destroy()
 
 if __name__ == "__main__":

@@ -10,6 +10,10 @@ import Add_score
 import green2screen
 import sendData
 import time
+import csv
+from scipy import integrate
+from scipy.spatial.transform import Rotation as R
+from threading import Thread, Event
 
 
 # Assumes ball and hole are separated on the x axis
@@ -21,95 +25,126 @@ def findMissDir(hole_center, ball_start, ball_end):
     else: # Ball starts on the left
         return "Short" if abs(x_diff) > abs(y_diff) and x_diff > 0 else ("Left" if y_diff > 0 else "Right")
 
-
-def sensor_reader(url, sensor_data_buffer, stop_event):
+def sensor_reader(esp32_url, sensor_data_buffer, stop_event):
     while not stop_event.is_set():
         try:
-            response = requests.get(url, timeout=2)
+            response = requests.get(esp32_url, timeout=2)
             if response.status_code == 200:
-                data = response.text.strip()
-                # print(f"Sensor Data: {data}")
-                sensor_data_buffer.append(data)
-                # print(sensor_data_buffer)
-            else:
-                print(f"Failed to retrieve data. HTTP Status code: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching data from ESP32: {e}")
+                raw_data = response.text.strip()
+                try:
+                    accel_line, gyro_line = raw_data.split('\n')
+                    accel_vals = {k.strip(): float(v.strip()) for k, v in 
+                                  (item.split(':') for item in accel_line.split('|'))}
+                    gyro_vals = {k.strip(): float(v.strip().replace('dps', '')) for k, v in 
+                                 (item.split(':') for item in gyro_line.split('|'))}
 
-        time.sleep(0.1)  # 100ms delay between readings
+                    # Convert raw units
+                    ax = accel_vals['Accel X'] / 256 * 9.8
+                    ay = accel_vals['Accel Y'] / 256 * 9.8
+                    az = accel_vals['Accel Z'] / 256 * 9.8
+                    gx = gyro_vals['Gyro X']
 
-def process_last_sensor_data(sensor_data_buffer):
-    speed = 0
-    max_speed = 0
-    corresponding_facing_angle = 0
-
-    dt = 0.1  # Time between readings (seconds)
-
-    for point in sensor_data_buffer:
-        try:
-            # Split the string into Accel and Gyro parts
-            accel_part, gyro_part = point.split('\n')
-
-            # Extract Accel values
-            accel_values = {}
-            for item in accel_part.split('|'):
-                key, value = item.strip().split(':')
-                accel_values[key.strip()] = float(value.strip())
-
-            # Extract Gyro values
-            gyro_values = {}
-            for item in gyro_part.split('|'):
-                key, value = item.strip().split(':')
-                gyro_values[key.strip()] = float(value.strip().replace(' dps', ''))
-
-            # Calculate acceleration magnitude (m/s²)
-            accel_x = accel_values['Accel X'] / 256 * 9.8
-            accel_y = accel_values['Accel Y'] / 256 * 9.8
-            accel_z = accel_values['Accel Z'] / 256 * 9.8
-            accel_magnitude = (accel_x ** 2 + accel_y ** 2 + accel_z ** 2) ** 0.5
-
-            # Update speed by integrating acceleration
-            speed += accel_magnitude * dt
-
-            # Update max speed if needed
-            if speed > max_speed:
-                max_speed = speed
-                corresponding_facing_angle = gyro_values['Gyro Z']
-
+                    timestamp = time.time()
+                    sensor_data_buffer.append((timestamp, ax, ay, az, gx))
+                except Exception as e:
+                    print(f"[ERROR] Parse failed: {e} | Raw: {raw_data}")
         except Exception as e:
-            print(f"Error parsing data point: {point} -> {e}")
-
-    print(f"Max Speed: {max_speed:.2f} m/s")
-    print(f"Corresponding Facing Angle (Gyro Z): {corresponding_facing_angle:.2f} degrees")
-    return [round(max_speed, 2), round(corresponding_facing_angle, 2)]
+            print(f"[ERROR] Request failed: {e}")
 
 
+def data_logger(sensor_data_buffer, stop_event):
+    with open("sensor_log.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['timestamp', 'ax', 'ay', 'az', 'gx'])
+        while not stop_event.is_set():
+            if sensor_data_buffer:
+                row = sensor_data_buffer.popleft()
+                writer.writerow(row)
+                f.flush()
+
+def process_logged_data():
+    print("\n[INFO] Processing logged data...")
+    timestamps, ax, ay, az, gx = [], [], [], [], []
+
+    with open("sensor_log.csv", 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            timestamps.append(float(row['timestamp']))
+            ax.append(float(row['ax']))
+            ay.append(float(row['ay']))
+            az.append(float(row['az']))
+            gx.append(float(row['gx']))
+
+    ax = np.array(ax)
+    ay = np.array(ay)
+    az = np.array(az)
+    gx = np.array(gx)
+    timestamps = np.array(timestamps)
+
+    dts = np.diff(timestamps, prepend=timestamps[0])
+    mean_dt = np.mean(dts)
+
+    # Use first second of data as baseline offset (stationary)
+    N_offset = int(1.0 / mean_dt)
+    ax0, ay0, az0 = np.mean(ax[:N_offset]), np.mean(ay[:N_offset]), np.mean(az[:N_offset])
+    gx0 = np.mean(gx[:N_offset])
+
+    # Remove offset
+    ax -= ax0
+    ay -= ay0
+    az -= az0
+    gx -= gx0
+
+    # Integrate gyro to get pitch (degrees)
+    pitch = integrate.cumulative_trapezoid(gx, dx=mean_dt, initial=0)
+
+    # Rotate acceleration vector to remove gravity
+    ax_nog = []
+    for i in range(len(ax)):
+        rot = R.from_rotvec([-np.deg2rad(pitch[i]), 0, 0])  # only pitch rotation
+        g = rot.apply([ax[i], ay[i], az[i]])
+        ax_nog.append(g[0])  # horizontal X-direction acceleration
+
+    ax_nog = np.array(ax_nog)
+
+    # Integrate to get velocity (in X)
+    vx = integrate.cumulative_trapezoid(ax_nog, dx=mean_dt, initial=0)
+
+    print(f"[RESULT] Final velocity: {vx[-1]:.2f} m/s")
+    print(f"[RESULT] Final facing angle (pitch): {pitch[-1]:.2f} degrees")
+    return abs(round(vx[-1], 2)), round(pitch[-1], 2)
 
 
-def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, displayHoleMask, user):
+
+
+def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, displayHoleMask, sensorsOn, user, stop_code):
     prev_time = time.time()
     fps_queue = deque(maxlen=50)  # Store the last 50 FPS values
 
-    # Replace with your ESP32's IP address
-    esp32_ip = "http://192.168.220.91"
-    url = f"{esp32_ip}"
 
-    # Shared buffer to store last 10 sensor readings
-    sensor_data_buffer = deque(maxlen=10)
+    if sensorsOn:
+        # Replace with your ESP32's IP address
+        esp32_url = "http://192.168.220.91"
 
-    stop_event = threading.Event()
-    sensor_thread = threading.Thread(target=sensor_reader, args=(url, sensor_data_buffer, stop_event))  #, daemon=True
-    sensor_thread.start()
+        # Shared buffer to store last 10 sensor readings
+        sensor_data_buffer = deque(maxlen=10)
+
+        stop_event = Event()
+        reader_thread = Thread(target=sensor_reader, args=(esp32_url, sensor_data_buffer, stop_event))
+        logger_thread = Thread(target=data_logger, args=(sensor_data_buffer, stop_event))
+        reader_thread.start()
+        logger_thread.start()
+
 
     # define the lower and upper boundaries for the ball and hole
     #ball_lower = (80, 25, 130)  # White
     #ball_upper = (120, 75, 255)  # White
-    ball_lower = (25, 90, 180)  # Yellow Ball on mat in lab at max light
+    ball_lower = (20, 16, 105)  # Yellow Ball on mat in lab at max light
     ball_upper = (65, 235, 255)  # Yellow
     #ball_lower = (0, 180, 150) # Orange
     #ball_upper = (20, 225, 255) # Orange
-    hole_lower = (85, 73, 35)      # Black (hole, to be adjusted once the actual hole is constructed) 
-    hole_upper = (120, 160, 160) # Black
+    hole_lower = (63, 20, 80)      # Black (hole, to be adjusted once the actual hole is constructed) 
+    hole_upper = (100, 95, 197) # Black
     #hole_lower = (90, 10, 40)      # Black (hole, to be adjusted once the actual hole is constructed) 
     #hole_upper = (130, 40, 130) # Black
 
@@ -147,7 +182,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
 
 
     # Main Video Loop
-    while True:
+    while not stop_code.is_set():
         start_time = time.time()
         ret, frame = vs.read()
 
@@ -229,10 +264,10 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
                     mask = np.zeros(frame.shape[:2], dtype="uint8")
                     cv2.circle(mask, (x, y), r, 255, -1)
                     
-                    mean_val = cv2.mean(gray, mask)
+                    mean_val = cv2.mean(hole_mask, mask)
                 
                     #print(mean_val, "   ", (x, y, r))
-                    if mean_val[0] < 100 and r > max_radius:  # Ensure it's dark and the largest circle
+                    if mean_val[0] > 200 and r > max_radius:  # Ensure it's dark and the largest circle
                         max_radius = r
                         largest_circle = (x, y, r)
 
@@ -293,8 +328,10 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
                 if len(positions) > 2:
                     if not ball_moved and np.linalg.norm(np.array(center) - np.array(positions[-2])) / np.linalg.norm(max_values - min_values) > 0.03:
                         print("Ball is hit!")
-                        finalPts = process_last_sensor_data(sensor_data_buffer)
-                        stop_event.set()
+                        if sensorsOn:
+                            stop_event.set()
+                            reader_thread.join()
+                            logger_thread.join()
                         ball_moved = True
 
             elif center is None and positions[-1] is not None:
@@ -335,7 +372,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
             if near_edge_count > 115 and 0 < np.mean(distances) / np.linalg.norm(max_values - min_values) == 0:
                 ball_out_of_green = True
 
-        '''
+        
         current_time = time.time()
         time_diff = current_time - prev_time
         prev_time = current_time
@@ -349,7 +386,7 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
         avg_fps = sum(fps_queue) / len(fps_queue)  # Moving average FPS
 
         # Display Smoothed FPS
-        print(f"FPS of Projector: {avg_fps:.2f}")'''
+        print(f"FPS of Projector: {avg_fps:.2f}") 
 
         corrected_frame = calibrate.my_warp(corrected_frame)
 
@@ -358,10 +395,12 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
         if displayCorrected:
             cv2.imshow("Projector Display", corrected_frame)
 
+
         cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)
+        cv2.moveWindow("Corrected Frame", 1920, 0)
         cv2.setWindowProperty("Corrected Frame", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Corrected Frame", corrected_frame)
-        cv2.moveWindow("Corrected Frame", 1920, 0)
+        
 
         if start_time is not None:
             end_time = time.time()
@@ -375,7 +414,11 @@ def cameraDetection(vs, displayFrame, displayCorrected, displayBallMask, display
         if key == ord("q"):
             break
 
-    sendData.sendData(user, score, finalPts, findMissDir(hole_center, position[0], position[-1]))
+    if sensorsOn:
+        puttSpeed, puttPitch = process_logged_data()
+    else:
+        puttSpeed, puttPitch = 0, 0
+    sendData.sendData(user, score, puttSpeed, puttPitch, findMissDir(hole_center, positions[0], positions[-1]))
 
     corrected_frame = calibrate.my_warp(corrected_frame)
     cv2.namedWindow("Corrected Frame", cv2.WND_PROP_FULLSCREEN)

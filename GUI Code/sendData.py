@@ -3,7 +3,7 @@ from firebase_admin import credentials, firestore
 import datetime
 
 
-def sendData(user, score, finalPts, missDir):
+def sendData(user, score, puttSpeed, puttPitch, missDir):
 
     db = firestore.client()
 
@@ -12,9 +12,9 @@ def sendData(user, score, finalPts, missDir):
 
     data = {
         'made': score>=97,
-        'missReason': missDir,
-        'speed': finalPts[0],
-        'facing angle': finalPts[1],
+        'missReason': missDir if score < 97 else "N/A",
+        'speed': puttSpeed,
+        'facing angle': puttPitch,
         'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
     }
 
